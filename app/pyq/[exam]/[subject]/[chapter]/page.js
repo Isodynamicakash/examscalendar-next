@@ -1,0 +1,48 @@
+import { notFound } from "next/navigation";
+import { listQuestions } from "@/lib/api";
+import { getChapter, getExamLabel } from "@/lib/taxonomy";
+import QuestionBrowserClient from "@/components/QuestionBrowserClient";
+
+const PAGE_SIZE = 10; // matches QuestionBrowserClient's PAGE_SIZE
+
+// NOTE: deliberately NOT using generateStaticParams here. With 328
+// chapters, eagerly building all of them would require your live
+// backend to be reachable during the Vercel build itself -- fragile.
+// Instead these render on-demand on first visit/crawl and get cached
+// via the `revalidate` setting in lib/api.js (ISR). Same end result
+// (fast, cached, crawlable) without a build-time backend dependency.
+
+export async function generateMetadata({ params }) {
+  const { exam, subject, chapter } = await params;
+  const { subject: subjectData, chapter: chapterData } = getChapter(exam, subject, chapter);
+  if (!chapterData) return {};
+  const examLabel = getExamLabel(exam);
+  const title = `${chapterData.name} PYQ — ${subjectData?.name} | ${examLabel}`;
+  const description = `Previous year questions for ${chapterData.name} (${subjectData?.name}, ${examLabel}) with detailed solutions, chapter-wise, year-wise. Free on ExamsCalendar.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/pyq/${exam}/${subject}/${chapter}` },
+  };
+}
+
+export default async function ChapterPage({ params }) {
+  const { exam, subject, chapter } = await params;
+  const { chapter: chapterData } = getChapter(exam, subject, chapter);
+  if (!chapterData) notFound();
+
+  // Fetch the FIRST PAGE of real questions server-side. This is what
+  // lands in the crawlable HTML response -- then QuestionBrowserClient
+  // hydrates on top of it and behaves exactly like your current app
+  // (live filtering, search, pagination, everything) from that point on.
+  const data = await listQuestions({ examSlug: exam, subject, chapter, limit: PAGE_SIZE, offset: 0 });
+
+  return (
+    <QuestionBrowserClient
+      examId={exam}
+      initialActive={{ subject, chapter, topic: null, year: [], shift: [], difficulty: [], question_type: [], exam_date: [] }}
+      initialQuestions={data?.questions || []}
+      initialTotal={data?.total || 0}
+    />
+  );
+}
