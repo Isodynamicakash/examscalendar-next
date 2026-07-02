@@ -48,6 +48,14 @@ export default async function ChapterPage({ params, searchParams }) {
 
   return (
     <QuestionBrowserClient
+      // Forces a genuinely fresh component instance on chapter/topic/view
+      // changes. Without this, a query-param-only navigation (e.g. picking
+      // a topic) keeps the same component instance alive, and its internal
+      // state -- seeded once from initialActive/initialView on first mount
+      // -- never re-syncs to the new URL. A manual refresh "fixed" it only
+      // because that forces a real remount; this key does the same thing
+      // automatically on every click.
+      key={`${subject}-${chapter}-${topic || "none"}-${view || "default"}`}
       examId={exam}
       initialActive={{ subject, chapter, topic, year: [], shift: [], difficulty: [], question_type: [], exam_date: [] }}
       initialView={view}
