@@ -37,7 +37,6 @@ function playCorrectSound() {
   const ctx = getCtx();
   if (!ctx) return;
   const t = ctx.currentTime;
-  // Bright ascending three-note chime -- "credit/success" feel
   playTone(ctx, 784, t, 0.13, "triangle");
   playTone(ctx, 988, t + 0.09, 0.13, "triangle");
   playTone(ctx, 1319, t + 0.18, 0.22, "triangle", 0.17);
@@ -46,7 +45,6 @@ function playIncorrectSound() {
   const ctx = getCtx();
   if (!ctx) return;
   const t = ctx.currentTime;
-  // Low double-buzz "denial" tone
   playTone(ctx, 180, t, 0.16, "sawtooth", 0.13);
   playTone(ctx, 140, t + 0.15, 0.22, "sawtooth", 0.13);
 }
@@ -69,7 +67,7 @@ export default function QuestionSolver({
   const [numericInput, setNumericInput] = useState("");
   const [answerShown, setAnswerShown] = useState(false);
   const [solutionShown, setSolutionShown] = useState(false);
-  const [flash, setFlash] = useState(null); // 'correct' | 'incorrect' | null
+  const [flash, setFlash] = useState(null);
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef(null);
   const flashTimeoutRef = useRef(null);
@@ -77,7 +75,12 @@ export default function QuestionSolver({
   const currentIndex = slugList.indexOf(q.slug);
   const qsSuffix = filterQuery ? `?${filterQuery}` : "";
   const prevSlug = currentIndex > 0 ? slugList[currentIndex - 1] : null;
-  const nextSlug = currentIndex >= 0 && currentIndex < slugList.length - 1 ? slugList[currentIndex + 1] : null;
+  const nextSlug =
+    currentIndex >= 0 && currentIndex < slugList.length - 1
+      ? slugList[currentIndex + 1]
+      : currentIndex === -1 && slugList.length > 0
+      ? slugList[0]
+      : null;
 
   const resetState = useCallback(() => {
     setSelected(null);
@@ -147,9 +150,6 @@ export default function QuestionSolver({
 
   const goTo = useCallback(
     (slug) => {
-      // Hard navigation, same reasoning as BackButton -- router.push() was
-      // hitting the same Next.js client-router staleness bug (URL updates,
-      // content doesn't). This guarantees content always matches the URL.
       if (slug && typeof window !== "undefined") window.location.assign(`${basePath}/${slug}${qsSuffix}`);
     },
     [basePath, qsSuffix]
@@ -246,7 +246,6 @@ export default function QuestionSolver({
           </div>
         )}
 
-        {/* Show Answer / Show Solution -- independent buttons */}
         <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
           {!answerShown && (
             <button
@@ -299,4 +298,4 @@ export default function QuestionSolver({
       )}
     </div>
   );
-}
+                      }
