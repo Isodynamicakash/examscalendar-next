@@ -26,8 +26,9 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function ChapterPage({ params }) {
+export default async function ChapterPage({ params, searchParams }) {
   const { exam, subject, chapter } = await params;
+  const sp = await searchParams;
   const { chapter: chapterData } = getChapter(exam, subject, chapter);
   if (!chapterData) notFound();
 
@@ -37,10 +38,19 @@ export default async function ChapterPage({ params }) {
   // (live filtering, search, pagination, everything) from that point on.
   const data = await listQuestions({ examSlug: exam, subject, chapter, limit: PAGE_SIZE, offset: 0 });
 
+  // ?topic=... and ?view=... come from in-app navigation (clicking a
+  // chapter or topic in ChapterBrowsePage/ChapterOverview). Direct visits
+  // (e.g. from Google) have neither, and default to showing the flat
+  // question list immediately -- that's the crawlable content this page
+  // exists for. In-app clicks explicitly request the Overview screen.
+  const topic = sp?.topic || null;
+  const view = sp?.view || null;
+
   return (
     <QuestionBrowserClient
       examId={exam}
-      initialActive={{ subject, chapter, topic: null, year: [], shift: [], difficulty: [], question_type: [], exam_date: [] }}
+      initialActive={{ subject, chapter, topic, year: [], shift: [], difficulty: [], question_type: [], exam_date: [] }}
+      initialView={view}
       initialQuestions={data?.questions || []}
       initialTotal={data?.total || 0}
     />
