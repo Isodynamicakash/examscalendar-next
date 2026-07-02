@@ -7,6 +7,7 @@ import { DARK } from "@/lib/questionTheme";
 import MathJaxProvider from "@/components/MathJaxProvider";
 import QuestionCard from "@/components/QuestionCard";
 import QuestionSolver from "@/components/QuestionSolver";
+import BackButton from "@/components/BackButton";
 
 // SSC CGL keeps the simpler inline-reveal card for now (per instruction --
 // not doing the Marks-style test UI for this exam yet).
@@ -36,8 +37,9 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function QuestionPage({ params }) {
+export default async function QuestionPage({ params, searchParams }) {
   const { exam, subject, chapter, slug } = await params;
+  const sp = await searchParams;
   const { question, answer } = await getQuestionWithAnswer(slug);
   if (!question) notFound();
 
@@ -45,8 +47,25 @@ export default async function QuestionPage({ params }) {
   const examLabel = getExamLabel(exam);
   const useSolver = SOLVER_EXAMS.has(exam);
 
+  // Whatever filters were active on the list page you clicked in from --
+  // topic/year/shift/difficulty/question_type -- carried here as query
+  // params. Previous/Next must respect these, or you'd jump between
+  // questions outside the filtered set you were actually looking at.
+  const filters = {
+    topic: sp?.topic || undefined,
+    year: sp?.year || undefined,
+    shift: sp?.shift || undefined,
+    difficulty: sp?.difficulty || undefined,
+    question_type: sp?.question_type || undefined,
+  };
+  // Preserve the same filters on Previous/Next links.
+  const filterQuery = Object.entries(filters)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join("&");
+
   const slugList = useSolver
-    ? await getChapterQuestionSlugs({ examSlug: exam, subject, chapter })
+    ? await getChapterQuestionSlugs({ examSlug: exam, subject, chapter, ...filters })
     : [];
 
   const options = [question.option_1, question.option_2, question.option_3, question.option_4].filter(Boolean);
@@ -71,7 +90,11 @@ export default async function QuestionPage({ params }) {
     <div style={{ background: T.bg, minHeight: "100vh", color: T.text, fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <nav style={{ padding: "16px 20px", fontSize: 13, color: T.textMuted, display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <div style={{ padding: "16px 20px 0" }}>
+        <BackButton C={T} fallbackHref={chapterHref || `/pyq/${exam}`} />
+      </div>
+
+      <nav style={{ padding: "12px 20px", fontSize: 13, color: T.textMuted, display: "flex", gap: 6, flexWrap: "wrap" }}>
         <Link href="/">Home</Link> ›
         <Link href={`/pyq/${exam}`}>{examLabel}</Link> ›
         {subjectData && <span style={{ color: T.textDim }}>{subjectData.name}</span>} ›
@@ -96,6 +119,7 @@ export default async function QuestionPage({ params }) {
               chapterName={chapterData?.name}
               chapterHref={chapterHref}
               basePath={`/pyq/${exam}/${subject}/${chapter}`}
+              filterQuery={filterQuery}
               slugList={slugList}
             />
           ) : (
@@ -114,4 +138,4 @@ export default async function QuestionPage({ params }) {
       </main>
     </div>
   );
-                }
+}
