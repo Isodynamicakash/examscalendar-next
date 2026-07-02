@@ -45,9 +45,6 @@ export default async function QuestionPage({ params }) {
   const examLabel = getExamLabel(exam);
   const useSolver = SOLVER_EXAMS.has(exam);
 
-  // Only fetch the sibling slug list (for Previous/Next) when we're
-  // actually using the solver UI -- the plain QuestionCard path doesn't
-  // need it, saves an extra API call for SSC CGL.
   const slugList = useSolver
     ? await getChapterQuestionSlugs({ examSlug: exam, subject, chapter })
     : [];
@@ -77,7 +74,7 @@ export default async function QuestionPage({ params }) {
       <nav style={{ padding: "16px 20px", fontSize: 13, color: T.textMuted, display: "flex", gap: 6, flexWrap: "wrap" }}>
         <Link href="/">Home</Link> ›
         <Link href={`/pyq/${exam}`}>{examLabel}</Link> ›
-        {subjectData && <Link href={`/pyq/${exam}/${subject}`}>{subjectData.name}</Link>} ›
+        {subjectData && <span style={{ color: T.textDim }}>{subjectData.name}</span>} ›
         {chapterData && <Link href={chapterHref}>{chapterData.name}</Link>}
       </nav>
 
@@ -117,4 +114,4 @@ export default async function QuestionPage({ params }) {
       </main>
     </div>
   );
-}
+                }
