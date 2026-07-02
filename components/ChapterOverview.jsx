@@ -85,7 +85,7 @@ export default function ChapterOverview({
   return (
     <div style={{ maxWidth: 780, margin: "0 auto", padding: "0 16px 60px" }}>
       <div style={{ marginBottom: 16 }}>
-        <BackButton C={C} fallbackHref="/" />
+        <BackButton C={C} fallbackHref={`/pyq/${examSlug}`} />
       </div>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: "0 0 4px" }}>{chapter.name}</h1>
