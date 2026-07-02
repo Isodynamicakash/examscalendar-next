@@ -32,12 +32,6 @@ export default async function ChapterPage({ params, searchParams }) {
   const { chapter: chapterData } = getChapter(exam, subject, chapter);
   if (!chapterData) notFound();
 
-  // Fetch the FIRST PAGE of real questions server-side. This is what
-  // lands in the crawlable HTML response -- then QuestionBrowserClient
-  // hydrates on top of it and behaves exactly like your current app
-  // (live filtering, search, pagination, everything) from that point on.
-  const data = await listQuestions({ examSlug: exam, subject, chapter, limit: PAGE_SIZE, offset: 0 });
-
   // ?topic=... and ?view=... come from in-app navigation (clicking a
   // chapter or topic in ChapterBrowsePage/ChapterOverview). Direct visits
   // (e.g. from Google) have neither, and default to showing the flat
@@ -45,6 +39,11 @@ export default async function ChapterPage({ params, searchParams }) {
   // exists for. In-app clicks explicitly request the Overview screen.
   const topic = sp?.topic || null;
   const view = sp?.view || null;
+
+  // Fetch the FIRST PAGE of real questions server-side, filtered by topic
+  // when one is present -- this is what lands in the crawlable HTML
+  // response, then QuestionBrowserClient hydrates on top of it.
+  const data = await listQuestions({ examSlug: exam, subject, chapter, topic, limit: PAGE_SIZE, offset: 0 });
 
   return (
     <QuestionBrowserClient
