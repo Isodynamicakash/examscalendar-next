@@ -14,6 +14,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { EXAM_TAXONOMY } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
+import BackButton from "./BackButton";
 
 const SLUG_ALIAS = { "jee-mains": "jee-main", "jee-adv": "jee-advanced" };
 function normalizeExamSlug(s) {
@@ -124,6 +125,9 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 16px 60px" }}>
+      <div style={{ marginBottom: 16 }}>
+        <BackButton C={C} fallbackHref="/" />
+      </div>
       <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
         {/* Subject tabs -- simple vertical nav, not a filter accordion */}
         <div style={{ width: 180, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6, position: "sticky", top: 70 }}>
