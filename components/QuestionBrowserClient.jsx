@@ -21,6 +21,46 @@ import { MathJaxContext } from "better-react-mathjax";
 import { useRouter } from "next/navigation";
 import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
+import Link from "next/link";
+
+// Exams that use the Marks-style single-question solver page. For these,
+// list items link out to their own page instead of expanding inline.
+// SSC CGL keeps the original inline-reveal QuestionCard behavior.
+const SOLVER_EXAMS = new Set(["jee-main", "jee-advanced", "neet"]);
+
+function questionPreview(text, maxLen = 150) {
+  if (!text) return "";
+  let t = text
+    .replace(/\[IMAGE:[^\]]+\]/g, "")
+    .replace(/\$\$?([^$]*)\$\$?/g, "$1")
+    .replace(/\\[a-zA-Z]+/g, " ")
+    .replace(/[{}\\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return t.length > maxLen ? t.slice(0, maxLen).trim() + "…" : t;
+}
+
+function QuestionListLink({ q, index, C, examSlug }) {
+  const TYPE_C = { MCQ: C.blue, MSQ: C.purple, NUMERICAL: C.orange };
+  const DIFF_C = { easy: C.green, medium: C.amber, hard: C.red };
+  const href = `/pyq/${examSlug}/${q.subject_slug}/${q.chapter_slug}/${q.slug}`;
+
+  return (
+    <Link
+      href={href}
+      style={{ display: "block", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 18px", color: C.text }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, background: C.surfaceHigh, border: `1px solid ${C.border}`, borderRadius: 6, padding: "1px 8px" }}>Q{index + 1}</span>
+        {q.question_type && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: (TYPE_C[q.question_type] || C.blue) + "18", color: TYPE_C[q.question_type] || C.blue, border: `1px solid ${TYPE_C[q.question_type] || C.blue}44` }}>{q.question_type}</span>}
+        {q.difficulty && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: (DIFF_C[q.difficulty] || C.amber) + "18", color: DIFF_C[q.difficulty] || C.amber, border: `1px solid ${DIFF_C[q.difficulty] || C.amber}44`, textTransform: "capitalize" }}>{q.difficulty}</span>}
+        {q.year && <span style={{ fontSize: 11, fontWeight: 700, color: C.isDark ? "#a78bfa" : "#7c3aed", marginLeft: "auto" }}>{q.year}{q.shift ? ` · ${q.shift}` : ""}</span>}
+      </div>
+      <div style={{ fontSize: 14, lineHeight: 1.6, color: C.text }}>{questionPreview(q.question_text)}</div>
+      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: C.accentLight }}>Solve this question →</div>
+    </Link>
+  );
+}
 import SearchBar from "./SearchBar";
 import QuestionCard from "./QuestionCard";
 import { DARK, LIGHT } from "@/lib/questionTheme";
@@ -517,9 +557,13 @@ export default function QuestionBrowserClient({
           {!loading && questions.length > 0 && (
             <>
               <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 12 }}>
-                {questions.map((q, i) => (
-                  <QuestionCard key={q.slug || q.id} q={q} index={(page - 1) * PAGE_SIZE + i} C={C} isMobile={isMobile} apiBase={API_URL} />
-                ))}
+                {questions.map((q, i) =>
+                  SOLVER_EXAMS.has(normalizeExamSlug(examId)) ? (
+                    <QuestionListLink key={q.slug || q.id} q={q} index={(page - 1) * PAGE_SIZE + i} C={C} examSlug={normalizeExamSlug(examId)} />
+                  ) : (
+                    <QuestionCard key={q.slug || q.id} q={q} index={(page - 1) * PAGE_SIZE + i} C={C} isMobile={isMobile} apiBase={API_URL} />
+                  )
+                )}
               </div>
               <Pagination page={page} totalPages={totalPages} total={total} onPage={goToPage} C={C} />
             </>
