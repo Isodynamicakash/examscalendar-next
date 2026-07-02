@@ -20,6 +20,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { MathJaxContext } from "better-react-mathjax";
 import { useRouter } from "next/navigation";
 import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
+import { getChaptersWithUnits } from "@/lib/units";
 import SearchBar from "./SearchBar";
 import QuestionCard from "./QuestionCard";
 import { DARK, LIGHT } from "@/lib/questionTheme";
@@ -93,6 +94,9 @@ function ChipGroup({ items, active, onToggle, colorFn, C }) {
 }
 
 function Sidebar({ examSlug, active, onSelect, liveFilters, C, isMobile, open, onClose }) {
+  const [classFilter, setClassFilter] = useState("all"); // "all" | "11" | "12"
+  const [unitFilter, setUnitFilter] = useState(null);    // unit name or null
+
   const handleSearchSelect = ({ subject, chapter, topic }) => {
     onSelect({ ...active, subject, chapter, topic });
   };
@@ -102,6 +106,15 @@ function Sidebar({ examSlug, active, onSelect, liveFilters, C, isMobile, open, o
 
   const selectedSubj = examData.subjects.find(s => s.slug === active.subject) || null;
   const selectedChap = selectedSubj?.chapters.find(c => c.slug === active.chapter) || null;
+
+  // Re-annotate this subject's chapters with class (11/12) and unit info,
+  // then narrow down by whichever class/unit filter is currently active.
+  const { chapters: annotatedChapters, units: unitList } = selectedSubj
+    ? getChaptersWithUnits(selectedSubj.slug, selectedSubj.chapters)
+    : { chapters: [], units: [] };
+  const visibleChapters = annotatedChapters.filter(
+    (ch) => (classFilter === "all" || ch.class === classFilter) && (!unitFilter || ch.unit === unitFilter)
+  );
 
   const diffColor = v => ({ easy: C.green, medium: C.amber, hard: C.red }[v] || C.accent);
   const typeColor = v => ({ MCQ: C.blue, MSQ: C.purple, NUMERICAL: C.orange }[v] || C.accent);
@@ -147,13 +160,39 @@ function Sidebar({ examSlug, active, onSelect, liveFilters, C, isMobile, open, o
         <FilterSection title="Chapter" C={C} defaultOpen={!!active.subject}>
           {!selectedSubj
             ? <p style={{ fontSize: 12, color: C.textDim, margin: 0 }}>Select a subject first</p>
-            : <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                {selectedSubj.chapters.map(ch => (
-                  <SItem key={ch.slug} label={ch.name} active={active.chapter === ch.slug}
-                    onClick={() => onSelect({ ...active, chapter: active.chapter === ch.slug ? null : ch.slug, topic: null })}
-                    C={C} />
-                ))}
-              </div>}
+            : <>
+                {/* Class filter */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                  {[["all", "All Classes"], ["11", "Class 11"], ["12", "Class 12"]].map(([val, label]) => (
+                    <button key={val} onClick={() => setClassFilter(val)} style={{
+                      flex: 1, padding: "6px 4px", borderRadius: 8, fontSize: 11, fontWeight: 700,
+                      border: `1.5px solid ${classFilter === val ? C.accent : C.border}`,
+                      background: classFilter === val ? C.accentBg : "transparent",
+                      color: classFilter === val ? C.accentLight : C.textMuted, cursor: "pointer",
+                    }}>{label}</button>
+                  ))}
+                </div>
+
+                {/* Unit filter (only shown when this subject has unit mapping) */}
+                {unitList.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <SItem label="All Units" active={!unitFilter} onClick={() => setUnitFilter(null)} C={C} />
+                    {unitList.map((u) => (
+                      <SItem key={u} label={u} active={unitFilter === u} onClick={() => setUnitFilter(unitFilter === u ? null : u)} C={C} count={annotatedChapters.filter(c => c.unit === u).length} />
+                    ))}
+                    <div style={{ borderBottom: `1px solid ${C.border}`, margin: "8px 0" }} />
+                  </div>
+                )}
+
+                <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                  {visibleChapters.map(ch => (
+                    <SItem key={ch.slug} label={ch.name} active={active.chapter === ch.slug}
+                      onClick={() => onSelect({ ...active, chapter: active.chapter === ch.slug ? null : ch.slug, topic: null })}
+                      C={C} />
+                  ))}
+                  {visibleChapters.length === 0 && <p style={{ fontSize: 12, color: C.textDim, margin: 0 }}>No chapters match this filter</p>}
+                </div>
+              </>}
         </FilterSection>
 
         {selectedChap && selectedChap.topics.length > 0 && (
