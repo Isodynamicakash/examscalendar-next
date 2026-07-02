@@ -11,7 +11,7 @@
  * QuestionBrowserClient switches to the (separately designed, TBD)
  * chapter-detail view.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { EXAM_TAXONOMY } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
 
@@ -94,6 +94,16 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
 
   const examData = EXAM_TAXONOMY[normalizeExamSlug(examSlug)] || { subjects: [] };
   const subject = examData.subjects.find((s) => s.slug === activeSubject) || examData.subjects[0];
+
+  // This screen defaults to showing the first subject even before the
+  // user explicitly clicks a tab. Without this, clicking a chapter under
+  // that default subject would tell the parent "chapter = X" while the
+  // parent's subject state is still null -- the exact bug that crashed
+  // Physics (the default first subject) but not Chemistry/Math (always
+  // explicitly clicked).
+  useEffect(() => {
+    if (!activeSubject && subject) onSelectSubject(subject.slug);
+  }, [activeSubject, subject, onSelectSubject]);
 
   const { chapters: annotated, units: unitList } = useMemo(
     () => (subject ? getChaptersWithUnits(subject.slug, subject.chapters) : { chapters: [], units: [] }),
