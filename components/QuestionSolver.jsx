@@ -7,7 +7,6 @@
  * reset with Solve Again.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import MathContent from "./MathContent";
 import { DARK } from "@/lib/questionTheme";
 
@@ -63,7 +62,6 @@ export default function QuestionSolver({
   filterQuery = "",
   slugList = [],
 }) {
-  const router = useRouter();
   const T = DARK;
 
   const [selected, setSelected] = useState(null);
@@ -148,8 +146,13 @@ export default function QuestionSolver({
   };
 
   const goTo = useCallback(
-    (slug) => { if (slug) router.push(`${basePath}/${slug}${qsSuffix}`); },
-    [basePath, qsSuffix, router]
+    (slug) => {
+      // Hard navigation, same reasoning as BackButton -- router.push() was
+      // hitting the same Next.js client-router staleness bug (URL updates,
+      // content doesn't). This guarantees content always matches the URL.
+      if (slug && typeof window !== "undefined") window.location.assign(`${basePath}/${slug}${qsSuffix}`);
+    },
+    [basePath, qsSuffix]
   );
 
   const isCorrectOpt = (i) => correctOptions.includes(i);
