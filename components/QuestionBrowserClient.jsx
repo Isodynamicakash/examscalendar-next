@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
 import ChapterBrowsePage from "./ChapterBrowsePage";
+import ChapterOverview from "./ChapterOverview";
 import Link from "next/link";
 
 // Exams that use the Marks-style single-question solver page. For these,
@@ -378,6 +379,12 @@ export default function QuestionBrowserClient({
 
   const [liveFilters, setLiveFilters] = useState({ years: [], shifts: [], dates: [], question_types: ["MCQ", "MSQ", "NUMERICAL"] });
   const [active, setActive] = useState(initialActive || EMPTY_ACTIVE);
+  // "overview" -> Marks-style chapter landing (All PYQs / Topics / Difficulty buckets)
+  // "list" -> the flat filtered question list
+  // Server-seeded chapter pages (SEO deep links) skip straight to "list" since
+  // that's the crawlable content that page was built to show.
+  const [chapterView, setChapterView] = useState(initialQuestions.length > 0 ? "list" : "overview");
+  const prevChapterRef = useRef(active.chapter);
   const [questions, setQuestions] = useState(initialQuestions);
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
@@ -394,6 +401,13 @@ export default function QuestionBrowserClient({
       return next;
     });
   };
+
+  useEffect(() => {
+    if (prevChapterRef.current !== active.chapter) {
+      setChapterView(active.chapter ? "overview" : "overview");
+      prevChapterRef.current = active.chapter;
+    }
+  }, [active.chapter]);
 
   // Live filters (years/shifts/dates)
   useEffect(() => {
@@ -533,6 +547,21 @@ export default function QuestionBrowserClient({
             onSelectSubject={(subj) => setActive((a) => ({ ...a, subject: subj, chapter: null, topic: null }))}
             onSelectChapter={(chap) => setActive((a) => ({ ...a, chapter: chap, topic: null }))}
             C={C}
+          />
+        </div>
+      ) : chapterView === "overview" ? (
+        <div style={{ padding: isMobile ? "16px 0 60px" : "24px 0 60px" }}>
+          <ChapterOverview
+            examSlug={examId}
+            examLabel={EXAM_LABEL[normalizeExamSlug(examId)] || examId}
+            subject={examData.subjects.find((s) => s.slug === active.subject)}
+            chapter={examData.subjects.find((s) => s.slug === active.subject)?.chapters.find((c) => c.slug === active.chapter)}
+            apiBase={API_URL}
+            C={C}
+            onViewAll={() => setChapterView("list")}
+            onSelectTopic={(topicSlug) => { setActive((a) => ({ ...a, topic: topicSlug })); setChapterView("list"); }}
+            onSelectDifficulty={(d) => { setActive((a) => ({ ...a, difficulty: [d] })); setChapterView("list"); }}
+            onSelectType={(t) => { setActive((a) => ({ ...a, question_type: [t] })); setChapterView("list"); }}
           />
         </div>
       ) : (
