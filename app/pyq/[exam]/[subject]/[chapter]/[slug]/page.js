@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getQuestionWithAnswer } from "@/lib/api";
+import { getQuestionWithAnswer, getChapterQuestionSlugs } from "@/lib/api";
 import { getChapter, getExamLabel } from "@/lib/taxonomy";
 import { toPlainText } from "@/lib/mathHelpers";
 import { DARK } from "@/lib/questionTheme";
 import MathJaxProvider from "@/components/MathJaxProvider";
 import QuestionCard from "@/components/QuestionCard";
+import QuestionSolver from "@/components/QuestionSolver";
 
-// ── Metadata: this is the single biggest SEO win in the whole migration.
-// Every question now gets its OWN <title>, description, canonical, and
-// JSON-LD — instead of every page on the site sharing one static title.
+// SSC CGL keeps the simpler inline-reveal card for now (per instruction --
+// not doing the Marks-style test UI for this exam yet).
+const SOLVER_EXAMS = new Set(["jee-main", "jee-advanced", "neet"]);
+
 export async function generateMetadata({ params }) {
   const { exam, subject, chapter, slug } = await params;
   const { question } = await getQuestionWithAnswer(slug);
@@ -39,12 +41,17 @@ export default async function QuestionPage({ params }) {
   const { question, answer } = await getQuestionWithAnswer(slug);
   if (!question) notFound();
 
-  const { exam: examData, subject: subjectData, chapter: chapterData } = getChapter(exam, subject, chapter);
+  const { subject: subjectData, chapter: chapterData } = getChapter(exam, subject, chapter);
   const examLabel = getExamLabel(exam);
+  const useSolver = SOLVER_EXAMS.has(exam);
 
-  // JSON-LD Question schema — this is what lets Google (and AI answer
-  // engines) show your question + answer directly in search results,
-  // the way you saw with the getmarks.app example.
+  // Only fetch the sibling slug list (for Previous/Next) when we're
+  // actually using the solver UI -- the plain QuestionCard path doesn't
+  // need it, saves an extra API call for SSC CGL.
+  const slugList = useSolver
+    ? await getChapterQuestionSlugs({ examSlug: exam, subject, chapter })
+    : [];
+
   const options = [question.option_1, question.option_2, question.option_3, question.option_4].filter(Boolean);
   const jsonLd = {
     "@context": "https://schema.org",
@@ -53,59 +60,60 @@ export default async function QuestionPage({ params }) {
     text: toPlainText(question.question_text, 1000),
     answerCount: 1,
     ...(options.length > 0 && {
-      suggestedAnswer: options.map((opt, i) => ({
-        "@type": "Answer",
-        text: toPlainText(opt, 200),
-        position: i + 1,
-      })),
+      suggestedAnswer: options.map((opt, i) => ({ "@type": "Answer", text: toPlainText(opt, 200), position: i + 1 })),
     }),
     ...(answer?.solution_text && {
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: toPlainText(answer.solution_text, 1000),
-      },
+      acceptedAnswer: { "@type": "Answer", text: toPlainText(answer.solution_text, 1000) },
     }),
   };
 
   const T = DARK;
+  const chapterHref = chapterData ? `/pyq/${exam}/${subject}/${chapter}` : null;
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", color: T.text, fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* Breadcrumb — real <a href> links, this is crawlable internal linking */}
       <nav style={{ padding: "16px 20px", fontSize: 13, color: T.textMuted, display: "flex", gap: 6, flexWrap: "wrap" }}>
         <Link href="/">Home</Link> ›
         <Link href={`/pyq/${exam}`}>{examLabel}</Link> ›
-        {subjectData && (
-          <>
-            <Link href={`/pyq/${exam}/${subject}`}>{subjectData.name}</Link> ›
-          </>
-        )}
-        {chapterData && <Link href={`/pyq/${exam}/${subject}/${chapter}`}>{chapterData.name}</Link>}
+        {subjectData && <Link href={`/pyq/${exam}/${subject}`}>{subjectData.name}</Link>} ›
+        {chapterData && <Link href={chapterHref}>{chapterData.name}</Link>}
       </nav>
 
       <main style={{ maxWidth: 760, margin: "0 auto", padding: "0 20px 60px" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, margin: "8px 0 20px" }}>
-          {examLabel} {question.year ? `${question.year} ` : ""}
-          {question.shift ? `(${question.shift}) ` : ""}
-          — {subjectData?.name || question.subject_name} PYQ
-        </h1>
+        {!useSolver && (
+          <h1 style={{ fontSize: 20, fontWeight: 800, margin: "8px 0 20px" }}>
+            {examLabel} {question.year ? `${question.year} ` : ""}
+            {question.shift ? `(${question.shift}) ` : ""}
+            — {subjectData?.name || question.subject_name} PYQ
+          </h1>
+        )}
 
         <MathJaxProvider>
-          <QuestionCard q={question} C={T} isMobile={false} initialAnswer={answer} />
+          {useSolver ? (
+            <QuestionSolver
+              q={question}
+              answer={answer}
+              examLabel={examLabel}
+              chapterName={chapterData?.name}
+              chapterHref={chapterHref}
+              basePath={`/pyq/${exam}/${subject}/${chapter}`}
+              slugList={slugList}
+            />
+          ) : (
+            <>
+              <QuestionCard q={question} C={T} isMobile={false} initialAnswer={answer} />
+              {chapterHref && (
+                <div style={{ marginTop: 32, textAlign: "center" }}>
+                  <Link href={chapterHref} style={{ display: "inline-block", padding: "10px 22px", borderRadius: 10, border: `1px solid ${T.accent}`, color: T.accentLight, fontWeight: 700, fontSize: 14 }}>
+                    ← More {chapterData?.name} questions
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
         </MathJaxProvider>
-
-        {chapterData && (
-          <div style={{ marginTop: 32, textAlign: "center" }}>
-            <Link
-              href={`/pyq/${exam}/${subject}/${chapter}`}
-              style={{ display: "inline-block", padding: "10px 22px", borderRadius: 10, border: `1px solid ${T.accent}`, color: T.accentLight, fontWeight: 700, fontSize: 14 }}
-            >
-              ← More {chapterData.name} questions
-            </Link>
-          </div>
-        )}
       </main>
     </div>
   );
