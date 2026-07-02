@@ -21,6 +21,7 @@ import { MathJaxContext } from "better-react-mathjax";
 import { useRouter } from "next/navigation";
 import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
+import ChapterBrowsePage from "./ChapterBrowsePage";
 import Link from "next/link";
 
 // Exams that use the Marks-style single-question solver page. For these,
@@ -523,6 +524,18 @@ export default function QuestionBrowserClient({
         <button onClick={toggleTheme} style={{ background: C.surfaceHigh, border: `1px solid ${C.border}`, borderRadius: 20, padding: "6px 12px", fontSize: 14, cursor: "pointer", color: C.textMuted, minHeight: 36 }}>{isDark ? "\u2600\uFE0F" : "\uD83C\uDF19"}</button>
       </div>
 
+      {!active.chapter ? (
+        <div style={{ padding: isMobile ? "16px 0 60px" : "24px 0 60px" }}>
+          <ChapterBrowsePage
+            examSlug={examId}
+            examLabel={EXAM_LABEL[normalizeExamSlug(examId)] || examId}
+            activeSubject={active.subject}
+            onSelectSubject={(subj) => setActive((a) => ({ ...a, subject: subj, chapter: null, topic: null }))}
+            onSelectChapter={(chap) => setActive((a) => ({ ...a, chapter: chap, topic: null }))}
+            C={C}
+          />
+        </div>
+      ) : (
       <div style={{ display: "flex", alignItems: "flex-start" }}>
         {!isMobile && <Sidebar examSlug={examId} active={active} onSelect={setActive} liveFilters={liveFilters} C={C} isMobile={false} open={true} onClose={() => {}} />}
 
@@ -570,6 +583,7 @@ export default function QuestionBrowserClient({
           )}
         </div>
       </div>
+      )}
 
       {isMobile && <Sidebar examSlug={examId} active={active} onSelect={setActive} liveFilters={liveFilters} C={C} isMobile={true} open={drawerOpen} onClose={() => setDrawerOpen(false)} />}
     </div>
