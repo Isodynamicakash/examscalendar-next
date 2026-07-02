@@ -1,15 +1,17 @@
 "use client";
-import { useRouter } from "next/navigation";
 
-// Real browser-back behavior (preserves scroll position, filter state,
-// etc.) rather than a hardcoded Link to a guessed parent URL.
+// We tried router.back() first, but it repeatedly hit a Next.js
+// client-router cache bug: the URL updates correctly, but the page
+// content stays stale (this is what you saw -- address bar showing
+// /pyq/jee-main while the question page was still visibly on screen).
+// A hard navigation sidesteps that entirely -- slightly less fancy
+// (no scroll-position restore) but the content will ALWAYS match the
+// URL, every single time. Reliability wins here.
 export default function BackButton({ C, fallbackHref = "/", label = "Back" }) {
-  const router = useRouter();
   return (
     <button
       onClick={() => {
-        if (typeof window !== "undefined" && window.history.length > 1) router.back();
-        else router.push(fallbackHref);
+        if (typeof window !== "undefined") window.location.assign(fallbackHref);
       }}
       style={{
         display: "flex", alignItems: "center", gap: 6, padding: "7px 14px",
