@@ -113,6 +113,12 @@ export default async function QuestionPage({ params, searchParams }) {
         <MathJaxProvider>
           {useSolver ? (
             <QuestionSolver
+              // Same fix as the chapter-page topic bug: without a key tied
+              // to the actual question, Next.js can reuse a stale component
+              // instance across Next/Previous clicks -- URL updates
+              // correctly but the visible content doesn't, or shows a
+              // mismatched previous question's data.
+              key={`${exam}-${subject}-${chapter}-${slug}`}
               q={question}
               answer={answer}
               examLabel={examLabel}
