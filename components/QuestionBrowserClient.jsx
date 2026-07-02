@@ -42,10 +42,20 @@ function questionPreview(text, maxLen = 150) {
   return t.length > maxLen ? t.slice(0, maxLen).trim() + "…" : t;
 }
 
-function QuestionListLink({ q, index, C, examSlug }) {
+function QuestionListLink({ q, index, C, examSlug, active }) {
   const TYPE_C = { MCQ: C.blue, MSQ: C.purple, NUMERICAL: C.orange };
   const DIFF_C = { easy: C.green, medium: C.amber, hard: C.red };
-  const href = `/pyq/${examSlug}/${q.subject_slug}/${q.chapter_slug}/${q.slug}`;
+
+  // Carry the current filter context into the question page so
+  // Previous/Next there stays within this same filtered set.
+  const qs = new URLSearchParams();
+  if (active?.topic) qs.set("topic", active.topic);
+  if (active?.year?.[0]) qs.set("year", active.year[0]);
+  if (active?.shift?.[0]) qs.set("shift", active.shift[0]);
+  if (active?.difficulty?.[0]) qs.set("difficulty", active.difficulty[0]);
+  if (active?.question_type?.[0]) qs.set("question_type", active.question_type[0]);
+  const queryStr = qs.toString();
+  const href = `/pyq/${examSlug}/${q.subject_slug}/${q.chapter_slug}/${q.slug}${queryStr ? `?${queryStr}` : ""}`;
 
   return (
     <Link
@@ -604,7 +614,7 @@ export default function QuestionBrowserClient({
               <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 12 }}>
                 {questions.map((q, i) =>
                   SOLVER_EXAMS.has(normalizeExamSlug(examId)) ? (
-                    <QuestionListLink key={q.slug || q.id} q={q} index={(page - 1) * PAGE_SIZE + i} C={C} examSlug={normalizeExamSlug(examId)} />
+                    <QuestionListLink key={q.slug || q.id} q={q} index={(page - 1) * PAGE_SIZE + i} C={C} examSlug={normalizeExamSlug(examId)} active={active} />
                   ) : (
                     <QuestionCard key={q.slug || q.id} q={q} index={(page - 1) * PAGE_SIZE + i} C={C} isMobile={isMobile} apiBase={API_URL} />
                   )
