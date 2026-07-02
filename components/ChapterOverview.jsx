@@ -19,14 +19,12 @@ function normalizeExamSlug(s) {
 export default function ChapterOverview({
   examSlug, examLabel, subject, chapter,
   apiBase, C,
-  onViewAll,        // () => void -- show the flat "All PYQs" list
-  onSelectTopic,     // (topicSlug) => void
-  onSelectDifficulty, // (difficulty) => void
-  onSelectType,      // (questionType) => void
+  onViewAll, onSelectTopic, onSelectDifficulty, onSelectType,
 }) {
-  const [counts, setCounts] = useState(null); // { total, easy, medium, hard, numerical }
+  const [counts, setCounts] = useState(null);
 
   useEffect(() => {
+    if (!subject || !chapter) return;
     const examId = EXAM_SLUG_TO_ID[normalizeExamSlug(examSlug)];
     const base = `${apiBase}/api/questions?exam_id=${examId}&subject=${subject.slug}&chapter=${chapter.slug}&limit=1`;
 
@@ -42,7 +40,18 @@ export default function ChapterOverview({
     ]).then(([total, easy, medium, hard, numerical]) => {
       setCounts({ total, easy, medium, hard, numerical });
     });
-  }, [examSlug, subject.slug, chapter.slug, apiBase]);
+  }, [examSlug, subject, chapter, apiBase]);
+
+  // Defensive fallback -- if subject/chapter somehow don't resolve
+  // (e.g. a stale link), show a simple message instead of crashing the
+  // whole page.
+  if (!subject || !chapter) {
+    return (
+      <div style={{ maxWidth: 480, margin: "60px auto", textAlign: "center", color: C.textMuted, fontSize: 14 }}>
+        Couldn't load this chapter. Try picking it again from the subject list.
+      </div>
+    );
+  }
 
   const Card = ({ title, subtitle, onClick, accent }) => (
     <button
