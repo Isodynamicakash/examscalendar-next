@@ -351,6 +351,7 @@ export default function QuestionBrowserClient({
   examId,
   apiBase,
   initialActive,
+  initialView,
   initialQuestions = [],
   initialTotal = 0,
 }) {
@@ -383,7 +384,9 @@ export default function QuestionBrowserClient({
   // "list" -> the flat filtered question list
   // Server-seeded chapter pages (SEO deep links) skip straight to "list" since
   // that's the crawlable content that page was built to show.
-  const [chapterView, setChapterView] = useState(initialQuestions.length > 0 ? "list" : "overview");
+  const [chapterView, setChapterView] = useState(
+    initialView === "overview" ? "overview" : initialView === "list" ? "list" : initialQuestions.length > 0 ? "list" : "overview"
+  );
   const prevChapterRef = useRef(active.chapter);
   const [questions, setQuestions] = useState(initialQuestions);
   const [total, setTotal] = useState(initialTotal);
@@ -545,7 +548,7 @@ export default function QuestionBrowserClient({
             examLabel={EXAM_LABEL[normalizeExamSlug(examId)] || examId}
             activeSubject={active.subject}
             onSelectSubject={(subj) => setActive((a) => ({ ...a, subject: subj, chapter: null, topic: null }))}
-            onSelectChapter={(chap) => setActive((a) => ({ ...a, chapter: chap, topic: null }))}
+            onSelectChapter={(chap) => router.push(`/pyq/${normalizeExamSlug(examId)}/${active.subject}/${chap}?view=overview`)}
             C={C}
           />
         </div>
@@ -559,7 +562,7 @@ export default function QuestionBrowserClient({
             apiBase={API_URL}
             C={C}
             onViewAll={() => setChapterView("list")}
-            onSelectTopic={(topicSlug) => { setActive((a) => ({ ...a, topic: topicSlug })); setChapterView("list"); }}
+            onSelectTopic={(topicSlug) => router.push(`/pyq/${normalizeExamSlug(examId)}/${active.subject}/${active.chapter}?topic=${topicSlug}&view=list`)}
             onSelectDifficulty={(d) => { setActive((a) => ({ ...a, difficulty: [d] })); setChapterView("list"); }}
             onSelectType={(t) => { setActive((a) => ({ ...a, question_type: [t] })); setChapterView("list"); }}
           />
