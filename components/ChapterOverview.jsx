@@ -8,6 +8,7 @@
  * Progress, Bookmarked Qs, My Mistakes, Test History).
  */
 import { useState, useEffect } from "react";
+import BackButton from "./BackButton";
 
 const EXAM_SLUG_TO_ID = { "jee-main": 1, "jee-advanced": 2, neet: 3, "ssc-cgl": 6 };
 const SLUG_ALIAS = { "jee-mains": "jee-main", "jee-adv": "jee-advanced" };
@@ -83,6 +84,9 @@ export default function ChapterOverview({
 
   return (
     <div style={{ maxWidth: 780, margin: "0 auto", padding: "0 16px 60px" }}>
+      <div style={{ marginBottom: 16 }}>
+        <BackButton C={C} fallbackHref="/" />
+      </div>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: "0 0 4px" }}>{chapter.name}</h1>
         <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>
