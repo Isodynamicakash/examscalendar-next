@@ -9,7 +9,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import MathContent from "./MathContent";
-import BackButton from "./BackButton";
 import { DARK } from "@/lib/questionTheme";
 
 // ---- Sounds via Web Audio API -- richer "credit"-style chime on correct,
@@ -180,10 +179,6 @@ export default function QuestionSolver({
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto" }}>
-      <div style={{ marginBottom: 12 }}>
-        <BackButton C={T} fallbackHref={chapterHref || basePath} />
-      </div>
-
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 800, color: T.textMuted }}>
