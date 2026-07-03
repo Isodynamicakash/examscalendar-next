@@ -1,17 +1,17 @@
 "use client";
+import { useRouter } from "next/navigation";
 
-// We tried router.back() first, but it repeatedly hit a Next.js
-// client-router cache bug: the URL updates correctly, but the page
-// content stays stale (this is what you saw -- address bar showing
-// /pyq/jee-main while the question page was still visibly on screen).
-// A hard navigation sidesteps that entirely -- slightly less fancy
-// (no scroll-position restore) but the content will ALWAYS match the
-// URL, every single time. Reliability wins here.
+// router.push + router.refresh(): fast client-side transition (no full
+// page reload), but forces Next.js to discard any cached data for the
+// destination and refetch fresh -- fixes the "URL changes, content
+// doesn't" bug without the slowness of a hard reload.
 export default function BackButton({ C, fallbackHref = "/", label = "Back" }) {
+  const router = useRouter();
   return (
     <button
       onClick={() => {
-        if (typeof window !== "undefined") window.location.assign(fallbackHref);
+        router.push(fallbackHref);
+        router.refresh();
       }}
       style={{
         display: "flex", alignItems: "center", gap: 6, padding: "7px 14px",
