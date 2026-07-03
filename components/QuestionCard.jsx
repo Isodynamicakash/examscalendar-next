@@ -85,7 +85,7 @@ export default function QuestionCard({ q, index, C, isMobile, apiBase, initialAn
       <div style={{ padding: pad }}>
         <MathContent text={q.question_text} block style={{ color: C.text, fontSize: 15, marginBottom: 14 }} />
 
-        {q.has_diagram && q.images?.length > 0 &&
+        {q.has_diagram && q.images?.length > 0 && !q.question_text?.includes("[IMAGE:") &&
           q.images.filter((im) => im.position !== "solution").map((im, i) => (
             <img key={i} src={im.url} alt="question diagram" style={{ maxWidth: "100%", borderRadius: 8, margin: "10px 0" }} />
           ))}
@@ -125,4 +125,4 @@ export default function QuestionCard({ q, index, C, isMobile, apiBase, initialAn
       </div>
     </div>
   );
-}
+                                                                     }
