@@ -7,6 +7,7 @@
  * reset with Solve Again.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import MathContent from "./MathContent";
 import { DARK } from "@/lib/questionTheme";
 
@@ -37,6 +38,7 @@ function playCorrectSound() {
   const ctx = getCtx();
   if (!ctx) return;
   const t = ctx.currentTime;
+  // Bright ascending three-note chime -- "credit/success" feel
   playTone(ctx, 784, t, 0.13, "triangle");
   playTone(ctx, 988, t + 0.09, 0.13, "triangle");
   playTone(ctx, 1319, t + 0.18, 0.22, "triangle", 0.17);
@@ -45,6 +47,7 @@ function playIncorrectSound() {
   const ctx = getCtx();
   if (!ctx) return;
   const t = ctx.currentTime;
+  // Low double-buzz "denial" tone
   playTone(ctx, 180, t, 0.16, "sawtooth", 0.13);
   playTone(ctx, 140, t + 0.15, 0.22, "sawtooth", 0.13);
 }
@@ -61,6 +64,7 @@ export default function QuestionSolver({
   slugList = [],
 }) {
   const T = DARK;
+  const router = useRouter();
 
   const [selected, setSelected] = useState(null);
   const [selectedMulti, setSelectedMulti] = useState([]);
@@ -154,12 +158,17 @@ export default function QuestionSolver({
 
   const goTo = useCallback(
     (slug) => {
-      // Hard navigation, same reasoning as BackButton -- router.push() was
-      // hitting the same Next.js client-router staleness bug (URL updates,
-      // content doesn't). This guarantees content always matches the URL.
-      if (slug && typeof window !== "undefined") window.location.assign(`${basePath}/${slug}${qsSuffix}`);
+      // router.push (fast, no full-page reload) + router.refresh()
+      // (forces Next.js to discard any cached data for the destination
+      // and refetch fresh) -- gets speed back while still guaranteeing
+      // content matches the URL, instead of the earlier hard-reload
+      // workaround.
+      if (slug) {
+        router.push(`${basePath}/${slug}${qsSuffix}`);
+        router.refresh();
+      }
     },
-    [basePath, qsSuffix]
+    [basePath, qsSuffix, router]
   );
 
   const isCorrectOpt = (i) => correctOptions.includes(i);
@@ -310,4 +319,4 @@ export default function QuestionSolver({
       )}
     </div>
   );
-}
+          }
