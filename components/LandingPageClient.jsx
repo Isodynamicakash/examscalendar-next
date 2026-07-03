@@ -7,6 +7,7 @@
  * (/pyq/jee-main etc.) via next/router instead of local page-state.
  */
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 const THEMES = {
   dark: {
@@ -246,6 +247,7 @@ function Footer({ T }) {
 }
 
 export default function LandingPageClient() {
+  const router = useRouter();
   const [isDark, setIsDark] = useState(true);
   const menuRef = useRef(null);
 
@@ -264,7 +266,8 @@ export default function LandingPageClient() {
 
   const onJeeMains = (id) => {
     const slug = ROUTE_SLUG[id] || id;
-    if (typeof window !== "undefined") window.location.assign(`/pyq/${slug}`);
+    router.push(`/pyq/${slug}`);
+    router.refresh();
   };
 
   const T = isDark ? THEMES.dark : THEMES.light;
