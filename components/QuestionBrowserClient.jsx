@@ -16,6 +16,7 @@
  * hydration, with zero behavior difference from clicking through
  * manually.
  */
+import AuthNavButton from "./AuthNavButton";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MathJaxContext } from "better-react-mathjax";
@@ -522,6 +523,7 @@ export default function QuestionBrowserClient({
     <MathJaxContext config={MATHJAX_CONFIG}>
     <div style={{ fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif", background: C.bg, minHeight: "100vh", color: C.text }}>
       <div style={{ position: "sticky", top: 0, zIndex: 400, background: C.nav, borderBottom: `1px solid ${C.border}`, height: NAV_H, display: "flex", alignItems: "center", padding: "0 14px", gap: 10 }}>
+        <AuthNavButton C={C} />
         <button onClick={() => { router.push("/"); router.refresh(); }} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 10px", color: C.textMuted, cursor: "pointer", fontSize: 12, fontWeight: 700, flexShrink: 0, marginRight: 4 }}>&larr; Home</button>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: `linear-gradient(135deg,${C.accent},${C.purple})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff", letterSpacing: -.5 }}>EC</div>
