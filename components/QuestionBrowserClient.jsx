@@ -17,6 +17,7 @@
  * manually.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { MathJaxContext } from "better-react-mathjax";
 import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
@@ -365,6 +366,7 @@ export default function QuestionBrowserClient({
   initialTotal = 0,
 }) {
   const API_URL = apiBase || API;
+  const router = useRouter();
 
   const [isDark, setIsDark] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -520,7 +522,7 @@ export default function QuestionBrowserClient({
     <MathJaxContext config={MATHJAX_CONFIG}>
     <div style={{ fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif", background: C.bg, minHeight: "100vh", color: C.text }}>
       <div style={{ position: "sticky", top: 0, zIndex: 400, background: C.nav, borderBottom: `1px solid ${C.border}`, height: NAV_H, display: "flex", alignItems: "center", padding: "0 14px", gap: 10 }}>
-        <button onClick={() => { if (typeof window !== "undefined") window.location.assign("/"); }} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 10px", color: C.textMuted, cursor: "pointer", fontSize: 12, fontWeight: 700, flexShrink: 0, marginRight: 4 }}>&larr; Home</button>
+        <button onClick={() => { router.push("/"); router.refresh(); }} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 10px", color: C.textMuted, cursor: "pointer", fontSize: 12, fontWeight: 700, flexShrink: 0, marginRight: 4 }}>&larr; Home</button>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: `linear-gradient(135deg,${C.accent},${C.purple})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff", letterSpacing: -.5 }}>EC</div>
           <span style={{ fontSize: isMobile ? 13 : 15, fontWeight: 800, color: C.text, letterSpacing: -.3 }}>
@@ -556,7 +558,7 @@ export default function QuestionBrowserClient({
             examLabel={EXAM_LABEL[normalizeExamSlug(examId)] || examId}
             activeSubject={active.subject}
             onSelectSubject={(subj) => setActive((a) => ({ ...a, subject: subj, chapter: null, topic: null }))}
-            onSelectChapter={(chap) => { if (typeof window !== "undefined") window.location.assign(`/pyq/${normalizeExamSlug(examId)}/${active.subject}/${chap}?view=overview`); }}
+            onSelectChapter={(chap) => { router.push(`/pyq/${normalizeExamSlug(examId)}/${active.subject}/${chap}?view=overview`); router.refresh(); }}
             C={C}
           />
         </div>
@@ -570,7 +572,7 @@ export default function QuestionBrowserClient({
             apiBase={API_URL}
             C={C}
             onViewAll={() => setChapterView("list")}
-            onSelectTopic={(topicSlug) => { if (typeof window !== "undefined") window.location.assign(`/pyq/${normalizeExamSlug(examId)}/${active.subject}/${active.chapter}?topic=${topicSlug}&view=list`); }}
+            onSelectTopic={(topicSlug) => { router.push(`/pyq/${normalizeExamSlug(examId)}/${active.subject}/${active.chapter}?topic=${topicSlug}&view=list`); router.refresh(); }}
             onSelectDifficulty={(d) => { setActive((a) => ({ ...a, difficulty: [d] })); setChapterView("list"); }}
             onSelectType={(t) => { setActive((a) => ({ ...a, question_type: [t] })); setChapterView("list"); }}
           />
@@ -629,4 +631,4 @@ export default function QuestionBrowserClient({
     </div>
     </MathJaxContext>
   );
-}
+                      }
