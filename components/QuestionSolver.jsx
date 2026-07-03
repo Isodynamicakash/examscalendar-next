@@ -67,13 +67,17 @@ export default function QuestionSolver({
   const [numericInput, setNumericInput] = useState("");
   const [answerShown, setAnswerShown] = useState(false);
   const [solutionShown, setSolutionShown] = useState(false);
-  const [flash, setFlash] = useState(null);
+  const [flash, setFlash] = useState(null); // 'correct' | 'incorrect' | null
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef(null);
   const flashTimeoutRef = useRef(null);
 
   const currentIndex = slugList.indexOf(q.slug);
   const qsSuffix = filterQuery ? `?${filterQuery}` : "";
+  // If the current question isn't found in the fetched list (can happen
+  // if the database doesn't guarantee stable ordering across separate
+  // queries), don't just disable both buttons -- fall back to "Next"
+  // going to the first item, so navigation still works.
   const prevSlug = currentIndex > 0 ? slugList[currentIndex - 1] : null;
   const nextSlug =
     currentIndex >= 0 && currentIndex < slugList.length - 1
@@ -150,6 +154,9 @@ export default function QuestionSolver({
 
   const goTo = useCallback(
     (slug) => {
+      // Hard navigation, same reasoning as BackButton -- router.push() was
+      // hitting the same Next.js client-router staleness bug (URL updates,
+      // content doesn't). This guarantees content always matches the URL.
       if (slug && typeof window !== "undefined") window.location.assign(`${basePath}/${slug}${qsSuffix}`);
     },
     [basePath, qsSuffix]
@@ -202,7 +209,11 @@ export default function QuestionSolver({
       <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 22px", ...flashOverlayStyle }}>
         <MathContent text={q.question_text} block style={{ color: T.text, fontSize: 16, marginBottom: 16 }} />
 
-        {q.has_diagram && q.images?.length > 0 &&
+        {/* Only render this fallback block for diagrams that AREN'T
+            already embedded inline via [IMAGE:...] in question_text --
+            otherwise MathContent renders it once, and this renders it
+            again, causing the duplicate you're seeing. */}
+        {q.has_diagram && q.images?.length > 0 && !q.question_text?.includes("[IMAGE:") &&
           q.images.filter((im) => im.position !== "solution").map((im, i) => (
             <img key={i} src={im.url} alt="question diagram" style={{ maxWidth: "100%", borderRadius: 8, margin: "10px 0" }} />
           ))}
@@ -246,6 +257,7 @@ export default function QuestionSolver({
           </div>
         )}
 
+        {/* Show Answer / Show Solution -- independent buttons */}
         <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
           {!answerShown && (
             <button
@@ -298,4 +310,4 @@ export default function QuestionSolver({
       )}
     </div>
   );
-                      }
+}
