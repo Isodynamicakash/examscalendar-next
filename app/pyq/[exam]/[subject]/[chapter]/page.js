@@ -1,9 +1,6 @@
 import { notFound } from "next/navigation";
-import { listQuestions } from "@/lib/api";
 import { getChapter, getExamLabel } from "@/lib/taxonomy";
-import QuestionBrowserClient from "@/components/QuestionBrowserClient";
-
-const PAGE_SIZE = 10; // matches QuestionBrowserClient's PAGE_SIZE
+import ChapterPageClient from "@/components/ChapterPageClient";
 
 // NOTE: deliberately NOT using generateStaticParams here. With 328
 // chapters, eagerly building all of them would require your live
@@ -29,37 +26,27 @@ export async function generateMetadata({ params }) {
 export default async function ChapterPage({ params, searchParams }) {
   const { exam, subject, chapter } = await params;
   const sp = await searchParams;
-  const { chapter: chapterData } = getChapter(exam, subject, chapter);
+  const { subject: subjectData, chapter: chapterData } = getChapter(exam, subject, chapter);
   if (!chapterData) notFound();
 
-  // ?topic=... and ?view=... come from in-app navigation (clicking a
-  // chapter or topic in ChapterBrowsePage/ChapterOverview). Direct visits
-  // (e.g. from Google) have neither, and default to showing the flat
-  // question list immediately -- that's the crawlable content this page
-  // exists for. In-app clicks explicitly request the Overview screen.
   const topic = sp?.topic || null;
   const view = sp?.view || null;
 
-  // Fetch the FIRST PAGE of real questions server-side, filtered by topic
-  // when one is present -- this is what lands in the crawlable HTML
-  // response, then QuestionBrowserClient hydrates on top of it.
-  const data = await listQuestions({ examSlug: exam, subject, chapter, topic, limit: PAGE_SIZE, offset: 0 });
+  const topicData = topic ? (chapterData.topics || []).find((t) => t.slug === topic) : null;
 
   return (
-    <QuestionBrowserClient
-      // Forces a genuinely fresh component instance on chapter/topic/view
-      // changes. Without this, a query-param-only navigation (e.g. picking
-      // a topic) keeps the same component instance alive, and its internal
-      // state -- seeded once from initialActive/initialView on first mount
-      // -- never re-syncs to the new URL. A manual refresh "fixed" it only
-      // because that forces a real remount; this key does the same thing
-      // automatically on every click.
+    <ChapterPageClient
       key={`${subject}-${chapter}-${topic || "none"}-${view || "default"}`}
-      examId={exam}
-      initialActive={{ subject, chapter, topic, year: [], shift: [], difficulty: [], question_type: [], exam_date: [] }}
-      initialView={view}
-      initialQuestions={data?.questions || []}
-      initialTotal={data?.total || 0}
+      exam={exam}
+      subject={subject}
+      chapter={chapter}
+      topic={topic}
+      view={view}
+      subjectName={subjectData?.name}
+      chapterName={chapterData?.name}
+      topicName={topicData?.name}
+      chapterTopics={chapterData?.topics || []}
+      examLabel={getExamLabel(exam)}
     />
   );
 }
