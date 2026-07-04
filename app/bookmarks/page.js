@@ -8,8 +8,6 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { DARK } from "@/lib/questionTheme";
 
-const EXAM_ID_TO_SLUG = { 1: "jee-main", 2: "jee-advanced", 3: "neet", 6: "ssc-cgl" };
-
 export default function BookmarksPage() {
   const T = DARK;
   const [state, setState] = useState({ status: "loading", user: null, rows: [] });
@@ -20,16 +18,34 @@ export default function BookmarksPage() {
       const user = sess?.session?.user || null;
       if (!user) { setState({ status: "logged-out", user: null, rows: [] }); return; }
 
-      // Pull bookmarks joined with question fields we need to build the
-      // link back and show a title. RLS makes sure only this user's rows
-      // come back regardless of what we query.
-      const { data, error } = await supabase
+      // Step 1: fetch this user's bookmarks (RLS ensures we only get our own).
+      const { data: bookmarks, error: bmError } = await supabase
         .from("bookmarks")
-        .select("id, created_at, questions:question_id (id, slug, question_text, exam_id, subject_slug, chapter_slug)")
+        .select("id, created_at, question_id")
         .order("created_at", { ascending: false });
 
-      if (error) { setState({ status: "error", user, rows: [], error: error.message }); return; }
-      setState({ status: "ok", user, rows: data || [] });
+      if (bmError) { setState({ status: "error", user, rows: [], error: bmError.message }); return; }
+      if (!bookmarks || bookmarks.length === 0) { setState({ status: "ok", user, rows: [] }); return; }
+
+      // Step 2: fetch the corresponding question rows from v_questions_full,
+      // which already has all the joined fields (exam_slug/subject_slug/
+      // chapter_slug/question_text). We can't do this as a nested select
+      // because Supabase's PostgREST joins don't work through views -- so
+      // we fetch separately and stitch together client-side.
+      const questionIds = bookmarks.map((b) => b.question_id);
+      const { data: questions, error: qError } = await supabase
+        .from("v_questions_full")
+        .select("id, slug, question_text, exam_slug, subject_slug, chapter_slug")
+        .in("id", questionIds);
+
+      if (qError) { setState({ status: "error", user, rows: [], error: qError.message }); return; }
+
+      const byId = new Map((questions || []).map((q) => [q.id, q]));
+      const rows = bookmarks
+        .map((b) => ({ ...b, question: byId.get(b.question_id) }))
+        .filter((r) => r.question); // drop bookmarks whose question was deleted upstream
+
+      setState({ status: "ok", user, rows });
     })();
   }, []);
 
@@ -69,10 +85,8 @@ export default function BookmarksPage() {
         {state.status === "ok" && state.rows.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {state.rows.map((row) => {
-              const q = row.questions;
-              if (!q) return null; // question was deleted upstream
-              const examSlug = EXAM_ID_TO_SLUG[q.exam_id];
-              const href = examSlug && q.subject_slug && q.chapter_slug ? `/pyq/${examSlug}/${q.subject_slug}/${q.chapter_slug}/${q.slug}` : null;
+              const q = row.question;
+              const href = q.exam_slug && q.subject_slug && q.chapter_slug ? `/pyq/${q.exam_slug}/${q.subject_slug}/${q.chapter_slug}/${q.slug}` : null;
               return (
                 <div key={row.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px" }}>
                   <div style={{ fontSize: 14, color: T.text, marginBottom: 6 }}>{preview(q.question_text)}</div>
@@ -88,4 +102,4 @@ export default function BookmarksPage() {
       </main>
     </div>
   );
-          }
+              }
