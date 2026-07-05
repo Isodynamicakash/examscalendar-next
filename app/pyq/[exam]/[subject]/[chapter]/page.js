@@ -8,7 +8,7 @@ import ChapterPageClient from "@/components/ChapterPageClient";
 // Instead these render on-demand on first visit/crawl and get cached
 // via the `revalidate` setting in lib/api.js (ISR). Same end result
 // (fast, cached, crawlable) without a build-time backend dependency.
-
+//ch
 export async function generateMetadata({ params }) {
   const { exam, subject, chapter } = await params;
   const { subject: subjectData, chapter: chapterData } = getChapter(exam, subject, chapter);
