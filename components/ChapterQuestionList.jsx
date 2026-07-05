@@ -376,10 +376,6 @@ export default function ChapterQuestionList({
     qs.set("limit", String(PAGE_SIZE));
     qs.set("offset", String((page - 1) * PAGE_SIZE));
 
-    // TEMP DEBUG -- remove once confirmed working
-    console.log("[ChapterQuestionList] committed:", JSON.stringify(committed));
-    console.log("[ChapterQuestionList] fetching:", `${apiBase}/api/questions?${qs.toString()}`);
-
     fetch(`${apiBase}/api/questions?${qs.toString()}`)
       .then((r) => r.json())
       .then((data) => {
@@ -466,8 +462,8 @@ export default function ChapterQuestionList({
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "16px 20px 100px", display: "flex", gap: 24, alignItems: "flex-start" }}>
 
         {!isMobile && (
-          <aside style={{ width: 280, flexShrink: 0, position: "sticky", top: 16, maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 16px 20px", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <aside style={{ width: 280, flexShrink: 0, position: "sticky", top: 16, maxHeight: "calc(100vh - 32px)", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 16px 12px", flexShrink: 0 }}>
               <span style={{ fontSize: 14, fontWeight: 800, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
                 Filter & Sort
                 {activeCommittedCount > 0 && <span style={{ background: C.accent, color: "#fff", borderRadius: 20, padding: "1px 8px", fontSize: 10, fontWeight: 800 }}>{activeCommittedCount}</span>}
@@ -476,11 +472,15 @@ export default function ChapterQuestionList({
                 <button onClick={clearAllCommitted} style={{ background: "none", border: "none", color: C.red, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Clear all</button>
               )}
             </div>
-            <div style={{ flex: 1, minHeight: 0 }}>
+            {/* Scrollable filter body -- scrolls independently so the
+                footer buttons never overlap the year list. */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 16px" }}>
               <FilterGroups {...filterGroupProps} />
             </div>
+            {/* Pinned footer -- solid background, flex-shrink 0, so it
+                always sits below the scroll area, never floating over it. */}
             {hasPendingChanges && (
-              <div style={{ display: "flex", gap: 8, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+              <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: `1px solid ${C.border}`, background: C.bgCard, flexShrink: 0 }}>
                 <button onClick={cancelPending} style={{ flex: 1, padding: "11px", borderRadius: 10, background: "transparent", color: C.textMuted, border: `1px solid ${C.border}`, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                 <button onClick={applyPending} style={{ flex: 2, padding: "11px", borderRadius: 10, background: C.accent, color: "#fff", border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Show Results</button>
               </div>
@@ -600,4 +600,4 @@ export default function ChapterQuestionList({
       )}
     </div>
   );
-}
+            }
