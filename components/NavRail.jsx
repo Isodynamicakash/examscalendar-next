@@ -47,8 +47,21 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
   }, []);
 
   // Personalized routes require login; route to /login if logged out.
+  // Toggle behavior: if we're ALREADY on the target page, clicking the
+  // icon again returns to the previous page (router.back), so the rail
+  // items act like open/close toggles. If there's no history to go back
+  // to (e.g. landed here directly), fall back to Home.
   const goGated = (href) => {
     if (!user) { router.push("/login"); return; }
+    if (pathname === href) {
+      // Already here -> toggle back to where we came from.
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+      } else {
+        window.location.assign("/");
+      }
+      return;
+    }
     router.push(href);
     router.refresh();
   };
@@ -132,4 +145,4 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
       </div>
     </nav>
   );
-    }
+}
