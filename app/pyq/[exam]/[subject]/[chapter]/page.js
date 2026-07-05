@@ -23,6 +23,14 @@ export async function generateMetadata({ params }) {
   };
 }
 
+// Extract a query-param value that may arrive as string OR string[]
+// (Next.js parses repeated ?year=... into arrays). Normalize to a
+// clean array of strings, empty if absent.
+function asArray(v) {
+  if (v == null) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
 export default async function ChapterPage({ params, searchParams }) {
   const { exam, subject, chapter } = await params;
   const sp = await searchParams;
@@ -31,17 +39,23 @@ export default async function ChapterPage({ params, searchParams }) {
 
   const topic = sp?.topic || null;
   const view = sp?.view || null;
+  const initialDifficulty = asArray(sp?.difficulty);
+  const initialQuestionType = asArray(sp?.question_type);
+  const initialYears = asArray(sp?.year).map((y) => parseInt(y, 10)).filter((n) => !isNaN(n));
 
   const topicData = topic ? (chapterData.topics || []).find((t) => t.slug === topic) : null;
 
   return (
     <ChapterPageClient
-      key={`${subject}-${chapter}-${topic || "none"}-${view || "default"}`}
+      key={`${subject}-${chapter}-${topic || "none"}-${view || "default"}-${initialDifficulty.join(",")}-${initialQuestionType.join(",")}`}
       exam={exam}
       subject={subject}
       chapter={chapter}
       topic={topic}
       view={view}
+      initialDifficulty={initialDifficulty}
+      initialQuestionType={initialQuestionType}
+      initialYears={initialYears}
       subjectName={subjectData?.name}
       chapterName={chapterData?.name}
       topicName={topicData?.name}
