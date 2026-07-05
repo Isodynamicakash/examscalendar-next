@@ -376,6 +376,10 @@ export default function ChapterQuestionList({
     qs.set("limit", String(PAGE_SIZE));
     qs.set("offset", String((page - 1) * PAGE_SIZE));
 
+    // TEMP DEBUG -- remove once confirmed working
+    console.log("[ChapterQuestionList] committed:", JSON.stringify(committed));
+    console.log("[ChapterQuestionList] fetching:", `${apiBase}/api/questions?${qs.toString()}`);
+
     fetch(`${apiBase}/api/questions?${qs.toString()}`)
       .then((r) => r.json())
       .then((data) => {
@@ -596,4 +600,4 @@ export default function ChapterQuestionList({
       )}
     </div>
   );
-    }
+}
