@@ -7,6 +7,11 @@
  *   ?view=list      -> ChapterQuestionList (Marks-style flat list w/ filters)
  *   (no view param) -> ChapterQuestionList by default (SEO deep links get
  *                       crawlable question content immediately)
+ *
+ * URL query params (difficulty, question_type, topic) are treated as
+ * ENTRY-LOCKED filters when passed through -- they seed initial filter
+ * state and the sidebar hides their sections since the user can't
+ * change them without going back.
  */
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -18,6 +23,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function ChapterPageClient({
   exam, subject, chapter, topic, view,
+  initialDifficulty, initialQuestionType, initialYears,
   subjectName, chapterName, topicName, chapterTopics, examLabel,
 }) {
   const router = useRouter();
@@ -48,6 +54,13 @@ export default function ChapterPageClient({
     );
   }
 
+  const initialFilters = {
+    difficulty: initialDifficulty || [],
+    questionType: initialQuestionType || [],
+    years: initialYears || [],
+    dates: [],
+  };
+
   return (
     <ChapterQuestionList
       examSlug={exam}
@@ -57,6 +70,7 @@ export default function ChapterPageClient({
       subjectSlug={subject}
       chapterSlug={chapter}
       topicSlug={topic}
+      initialFilters={initialFilters}
       apiBase={API_URL}
       C={C}
     />
