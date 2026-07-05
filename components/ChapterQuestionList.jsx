@@ -279,20 +279,28 @@ export default function ChapterQuestionList({
   }, [initialFilters, topicSlug]);
   const visibleSections = useMemo(() => computeVisibleSections(lockedKeys), [lockedKeys]);
 
-  const defaultFilters = useMemo(() => ({
+  // Build the starting filter object from the URL-provided initial
+  // filters. IMPORTANT: this is used with useState's LAZY initializer
+  // form (useState(() => ...)) so it runs exactly once at mount and
+  // reads initialFilters as-passed. The earlier version used
+  // useState(defaultFilters) which could capture a stale/empty object
+  // if the parent re-rendered (it passes a fresh initialFilters object
+  // literal every render) -- that was the bug causing difficulty=easy
+  // to be dropped and all 107 questions to show.
+  const makeInitial = () => ({
     years: initialFilters.years || [],
     dates: initialFilters.dates || [],
     difficulty: initialFilters.difficulty || [],
     questionType: initialFilters.questionType || [],
     attemptStatus: [],
-  }), [initialFilters]);
+  });
 
   // "committed" = what the question list is currently filtered by,
   // what's in the URL / actually runs a fetch.
   // "pending"   = what the sidebar chips currently show; local UI only
   //               until user hits "Show Results".
-  const [committed, setCommitted] = useState(defaultFilters);
-  const [pending, setPending] = useState(defaultFilters);
+  const [committed, setCommitted] = useState(makeInitial);
+  const [pending, setPending] = useState(makeInitial);
 
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -588,4 +596,4 @@ export default function ChapterQuestionList({
       )}
     </div>
   );
-                            }
+            }
