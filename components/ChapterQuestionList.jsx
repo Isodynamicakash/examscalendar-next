@@ -2,15 +2,21 @@
 /**
  * ChapterQuestionList.jsx -- Marks-style "All PYQs" page.
  *
- * Desktop (>=1024px): permanent left sidebar with all filter groups
- * (Sort By [coming soon], Attempt Status, Difficulty, Question Type,
- * Years -> expandable to dates). Live-apply, no "Show Results" button.
+ * Two behavior contracts worth remembering:
  *
- * Mobile (<1024px): floating pill button bottom-center opens the same
- * filter groups in a bottom-sheet modal.
+ * 1) Staged filter mode (like Marks). Clicking a chip only updates
+ *    "pending" local state. Nothing refetches until "Show Results" is
+ *    clicked. "Cancel" reverts pending back to committed. If no changes
+ *    are pending, neither button is shown. On very first load, questions
+ *    show immediately for the initial (URL-provided) filter state; no
+ *    Show Results click is needed to see them.
  *
- * Filters are dynamic: only years that actually have questions in this
- * chapter/topic are shown; dates within each year are only ones present.
+ * 2) Entry-locked filters. If the user arrived here from a bucket on
+ *    the Chapter Overview page (e.g. clicked "Easy", "Numerical", or
+ *    a specific topic), that filter is considered COMMITTED and its
+ *    filter section is hidden from the sidebar -- you can't undo it
+ *    without going back. Only the other filters remain adjustable.
+ *    "All PYQs" arrival shows all filter sections.
  */
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
@@ -34,9 +40,30 @@ function questionPreview(text, maxLen = 160) {
   return t.length > maxLen ? t.slice(0, maxLen).trim() + "…" : t;
 }
 
-function FilterGroups({ C, filters, setFilters, availableYears, datesByYear, examLabel, showAttemptStatus, currentYear }) {
+// Which filter sections should be visible given the "entry lock".
+// If the user arrived by picking Difficulty=easy, we hide the whole
+// difficulty section (they can't change it here, they'd have to go
+// back). Same logic for questionType and topic. attemptStatus and
+// years are always adjustable when logged in / available.
+function computeVisibleSections(lockedKeys) {
+  return {
+    difficulty: !lockedKeys.includes("difficulty"),
+    questionType: !lockedKeys.includes("questionType"),
+    topic: !lockedKeys.includes("topic"),
+    years: true,
+    attemptStatus: true,
+    sortBy: true,
+  };
+}
+
+function FilterGroups({
+  C, pending, setPending,
+  availableYears, datesByYear,
+  examLabel, showAttemptStatus, currentYear,
+  visibleSections,
+}) {
   const toggle = (key, val) => {
-    setFilters((f) => {
+    setPending((f) => {
       const arr = f[key] || [];
       const next = arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
       return { ...f, [key]: next };
@@ -46,9 +73,9 @@ function FilterGroups({ C, filters, setFilters, availableYears, datesByYear, exa
   const applyQuickYears = (n) => {
     const cutoff = currentYear - n + 1;
     const range = availableYears.filter((y) => y >= cutoff);
-    setFilters((f) => ({ ...f, years: range, dates: [] }));
+    setPending((f) => ({ ...f, years: range, dates: [] }));
   };
-  const clearYears = () => setFilters((f) => ({ ...f, years: [], dates: [] }));
+  const clearYears = () => setPending((f) => ({ ...f, years: [], dates: [] }));
 
   const [expandedYear, setExpandedYear] = useState(null);
 
@@ -74,71 +101,77 @@ function FilterGroups({ C, filters, setFilters, availableYears, datesByYear, exa
     </div>
   );
 
-  const yearActive = (y) => (filters.years || []).includes(y);
-  const dateActive = (dateKey) => (filters.dates || []).includes(dateKey);
-  const yearHasSomeDates = (y) => (filters.dates || []).some((d) => d.startsWith(`${y}:`));
+  const yearActive = (y) => (pending.years || []).includes(y);
+  const dateActive = (dateKey) => (pending.dates || []).includes(dateKey);
+  const yearHasSomeDates = (y) => (pending.dates || []).some((d) => d.startsWith(`${y}:`));
 
   return (
     <div>
-      <div style={{ marginBottom: 22 }}>
-        <SectionTitle>Sort By</SectionTitle>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <Chip label="Default" active disabled onClick={() => {}} />
-          <Chip label="Year New→Old" disabled onClick={() => {}} />
-          <Chip label="Last Practiced" disabled onClick={() => {}} />
+      {visibleSections.sortBy && (
+        <div style={{ marginBottom: 22 }}>
+          <SectionTitle>Sort By</SectionTitle>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <Chip label="Default" active disabled onClick={() => {}} />
+            <Chip label="Year New→Old" disabled onClick={() => {}} />
+            <Chip label="Last Practiced" disabled onClick={() => {}} />
+          </div>
+          <div style={{ fontSize: 10, color: C.textDim, marginTop: 6 }}>Coming soon</div>
         </div>
-        <div style={{ fontSize: 10, color: C.textDim, marginTop: 6 }}>Coming soon</div>
-      </div>
+      )}
 
-      {showAttemptStatus && (
+      {visibleSections.attemptStatus && showAttemptStatus && (
         <div style={{ marginBottom: 22 }}>
           <SectionTitle>
             Attempt Status
-            {(filters.attemptStatus || []).length > 0 && (
-              <button onClick={() => setFilters((f) => ({ ...f, attemptStatus: [] }))} style={{ background: "none", border: "none", color: C.red, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Clear</button>
+            {(pending.attemptStatus || []).length > 0 && (
+              <button onClick={() => setPending((f) => ({ ...f, attemptStatus: [] }))} style={{ background: "none", border: "none", color: C.red, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Clear</button>
             )}
           </SectionTitle>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <Chip label="✓ Correct" active={(filters.attemptStatus || []).includes("correct")} onClick={() => toggle("attemptStatus", "correct")} color={C.green} />
-            <Chip label="✗ Incorrect" active={(filters.attemptStatus || []).includes("incorrect")} onClick={() => toggle("attemptStatus", "incorrect")} color={C.red} />
-            <Chip label="○ Unattempted" active={(filters.attemptStatus || []).includes("unattempted")} onClick={() => toggle("attemptStatus", "unattempted")} />
+            <Chip label="✓ Correct" active={(pending.attemptStatus || []).includes("correct")} onClick={() => toggle("attemptStatus", "correct")} color={C.green} />
+            <Chip label="✗ Incorrect" active={(pending.attemptStatus || []).includes("incorrect")} onClick={() => toggle("attemptStatus", "incorrect")} color={C.red} />
+            <Chip label="○ Unattempted" active={(pending.attemptStatus || []).includes("unattempted")} onClick={() => toggle("attemptStatus", "unattempted")} />
           </div>
         </div>
       )}
 
-      <div style={{ marginBottom: 22 }}>
-        <SectionTitle>
-          Difficulty
-          {(filters.difficulty || []).length > 0 && (
-            <button onClick={() => setFilters((f) => ({ ...f, difficulty: [] }))} style={{ background: "none", border: "none", color: C.red, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Clear</button>
-          )}
-        </SectionTitle>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <Chip label="Easy" active={(filters.difficulty || []).includes("easy")} onClick={() => toggle("difficulty", "easy")} color={C.green} />
-          <Chip label="Medium" active={(filters.difficulty || []).includes("medium")} onClick={() => toggle("difficulty", "medium")} color={C.amber} />
-          <Chip label="Hard" active={(filters.difficulty || []).includes("hard")} onClick={() => toggle("difficulty", "hard")} color={C.red} />
+      {visibleSections.difficulty && (
+        <div style={{ marginBottom: 22 }}>
+          <SectionTitle>
+            Difficulty
+            {(pending.difficulty || []).length > 0 && (
+              <button onClick={() => setPending((f) => ({ ...f, difficulty: [] }))} style={{ background: "none", border: "none", color: C.red, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Clear</button>
+            )}
+          </SectionTitle>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <Chip label="Easy" active={(pending.difficulty || []).includes("easy")} onClick={() => toggle("difficulty", "easy")} color={C.green} />
+            <Chip label="Medium" active={(pending.difficulty || []).includes("medium")} onClick={() => toggle("difficulty", "medium")} color={C.amber} />
+            <Chip label="Hard" active={(pending.difficulty || []).includes("hard")} onClick={() => toggle("difficulty", "hard")} color={C.red} />
+          </div>
         </div>
-      </div>
+      )}
 
-      <div style={{ marginBottom: 22 }}>
-        <SectionTitle>
-          Question Type
-          {(filters.questionType || []).length > 0 && (
-            <button onClick={() => setFilters((f) => ({ ...f, questionType: [] }))} style={{ background: "none", border: "none", color: C.red, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Clear</button>
-          )}
-        </SectionTitle>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <Chip label="MCQ" active={(filters.questionType || []).includes("MCQ")} onClick={() => toggle("questionType", "MCQ")} color={C.blue} />
-          <Chip label="MSQ" active={(filters.questionType || []).includes("MSQ")} onClick={() => toggle("questionType", "MSQ")} color={C.purple} />
-          <Chip label="Numerical" active={(filters.questionType || []).includes("NUMERICAL")} onClick={() => toggle("questionType", "NUMERICAL")} color={C.orange} />
+      {visibleSections.questionType && (
+        <div style={{ marginBottom: 22 }}>
+          <SectionTitle>
+            Question Type
+            {(pending.questionType || []).length > 0 && (
+              <button onClick={() => setPending((f) => ({ ...f, questionType: [] }))} style={{ background: "none", border: "none", color: C.red, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Clear</button>
+            )}
+          </SectionTitle>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <Chip label="MCQ" active={(pending.questionType || []).includes("MCQ")} onClick={() => toggle("questionType", "MCQ")} color={C.blue} />
+            <Chip label="MSQ" active={(pending.questionType || []).includes("MSQ")} onClick={() => toggle("questionType", "MSQ")} color={C.purple} />
+            <Chip label="Numerical" active={(pending.questionType || []).includes("NUMERICAL")} onClick={() => toggle("questionType", "NUMERICAL")} color={C.orange} />
+          </div>
         </div>
-      </div>
+      )}
 
-      {availableYears.length > 0 && (
+      {visibleSections.years && availableYears.length > 0 && (
         <div style={{ marginBottom: 10 }}>
           <SectionTitle>
             Years
-            {((filters.years || []).length > 0 || (filters.dates || []).length > 0) && (
+            {((pending.years || []).length > 0 || (pending.dates || []).length > 0) && (
               <button onClick={clearYears} style={{ background: "none", border: "none", color: C.red, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Clear</button>
             )}
           </SectionTitle>
@@ -207,16 +240,60 @@ function AttemptBadge({ status, C }) {
   );
 }
 
+// Deep-equals for the filter shape we use. Enough to compare pending
+// vs committed without needing a dependency.
+function filtersEqual(a, b) {
+  const keys = ["years", "dates", "difficulty", "questionType", "attemptStatus"];
+  for (const k of keys) {
+    const av = a[k] || [];
+    const bv = b[k] || [];
+    if (av.length !== bv.length) return false;
+    const sa = [...av].sort().join("|");
+    const sb = [...bv].sort().join("|");
+    if (sa !== sb) return false;
+  }
+  return true;
+}
+
 export default function ChapterQuestionList({
   examSlug, examLabel, chapterName, topicName,
   subjectSlug, chapterSlug, topicSlug,
+  // Initial filters seeded from the URL. These represent the user's
+  // "entry point" -- e.g. if they arrived via the Easy bucket, this
+  // will have difficulty=["easy"]. That's what gets locked in.
+  initialFilters = {},
   apiBase, C,
 }) {
   const normSlug = normalizeExamSlug(examSlug);
   const examId = EXAM_SLUG_TO_ID[normSlug];
   const currentYear = new Date().getFullYear();
 
-  const [filters, setFilters] = useState({ years: [], dates: [], difficulty: [], questionType: [], attemptStatus: [] });
+  // Which filter categories are "entry-locked" -- i.e. arrived via URL
+  // and can't be changed here.
+  const lockedKeys = useMemo(() => {
+    const locks = [];
+    if ((initialFilters.difficulty || []).length > 0) locks.push("difficulty");
+    if ((initialFilters.questionType || []).length > 0) locks.push("questionType");
+    if (topicSlug) locks.push("topic");
+    return locks;
+  }, [initialFilters, topicSlug]);
+  const visibleSections = useMemo(() => computeVisibleSections(lockedKeys), [lockedKeys]);
+
+  const defaultFilters = useMemo(() => ({
+    years: initialFilters.years || [],
+    dates: initialFilters.dates || [],
+    difficulty: initialFilters.difficulty || [],
+    questionType: initialFilters.questionType || [],
+    attemptStatus: [],
+  }), [initialFilters]);
+
+  // "committed" = what the question list is currently filtered by,
+  // what's in the URL / actually runs a fetch.
+  // "pending"   = what the sidebar chips currently show; local UI only
+  //               until user hits "Show Results".
+  const [committed, setCommitted] = useState(defaultFilters);
+  const [pending, setPending] = useState(defaultFilters);
+
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -242,6 +319,8 @@ export default function ChapterQuestionList({
     supabase.auth.getSession().then(({ data }) => setUser(data?.session?.user || null));
   }, []);
 
+  // Fetch year/date facets ONCE for this chapter/topic. Unaffected by
+  // difficulty/questionType because year is a paper-scope filter.
   useEffect(() => {
     if (!examId) return;
     const qs = new URLSearchParams({ exam_id: String(examId) });
@@ -264,9 +343,9 @@ export default function ChapterQuestionList({
         const yearsSorted = Array.from(yearSet).sort((a, b) => b - a);
         const dbyYear = {};
         yearsSorted.forEach((y) => {
-          const rows = Array.from(dateBuckets[y].values());
-          rows.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-          dbyYear[y] = rows;
+          const dr = Array.from(dateBuckets[y].values());
+          dr.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+          dbyYear[y] = dr;
         });
         setAvailableYears(yearsSorted);
         setDatesByYear(dbyYear);
@@ -274,6 +353,8 @@ export default function ChapterQuestionList({
       .catch(console.error);
   }, [examId, subjectSlug, chapterSlug, topicSlug, apiBase]);
 
+  // Main question fetch keyed off COMMITTED filters, never pending.
+  // This is what enforces staged behavior.
   useEffect(() => {
     if (!examId) return;
     setLoading(true);
@@ -281,9 +362,9 @@ export default function ChapterQuestionList({
     if (subjectSlug) qs.append("subject", subjectSlug);
     if (chapterSlug) qs.append("chapter", chapterSlug);
     if (topicSlug) qs.append("topic", topicSlug);
-    (filters.years || []).forEach((y) => qs.append("year", String(y)));
-    (filters.difficulty || []).forEach((d) => qs.append("difficulty", d));
-    (filters.questionType || []).forEach((qt) => qs.append("question_type", qt));
+    (committed.years || []).forEach((y) => qs.append("year", String(y)));
+    (committed.difficulty || []).forEach((d) => qs.append("difficulty", d));
+    (committed.questionType || []).forEach((qt) => qs.append("question_type", qt));
     qs.set("limit", String(PAGE_SIZE));
     qs.set("offset", String((page - 1) * PAGE_SIZE));
 
@@ -295,9 +376,10 @@ export default function ChapterQuestionList({
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [examId, subjectSlug, chapterSlug, topicSlug, filters.years, filters.difficulty, filters.questionType, page, apiBase]);
+  }, [examId, subjectSlug, chapterSlug, topicSlug, committed, page, apiBase]);
 
-  useEffect(() => { setPage(1); }, [filters.years, filters.dates, filters.difficulty, filters.questionType, filters.attemptStatus]);
+  // Reset page when committed changes (not pending).
+  useEffect(() => { setPage(1); }, [committed]);
 
   useEffect(() => {
     if (!user || questions.length === 0) { setAttemptMap({}); return; }
@@ -319,42 +401,52 @@ export default function ChapterQuestionList({
 
   const visibleQuestions = useMemo(() => {
     let list = questions;
-    if ((filters.dates || []).length > 0) {
-      const dateSet = new Set(filters.dates);
+    if ((committed.dates || []).length > 0) {
+      const dateSet = new Set(committed.dates);
       list = list.filter((q) => dateSet.has(`${q.year}:${q.exam_date || ""}:${q.shift || ""}`));
     }
-    if (user && (filters.attemptStatus || []).length > 0) {
-      list = list.filter((q) => filters.attemptStatus.includes(attemptMap[q.id] || "unattempted"));
+    if (user && (committed.attemptStatus || []).length > 0) {
+      list = list.filter((q) => committed.attemptStatus.includes(attemptMap[q.id] || "unattempted"));
     }
     return list;
-  }, [questions, filters.dates, filters.attemptStatus, attemptMap, user]);
+  }, [questions, committed.dates, committed.attemptStatus, attemptMap, user]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const activeFilterCount =
-    (filters.years?.length || 0) +
-    (filters.dates?.length || 0) +
-    (filters.difficulty?.length || 0) +
-    (filters.questionType?.length || 0) +
-    (filters.attemptStatus?.length || 0);
+
+  const activeCommittedCount =
+    (committed.years?.length || 0) +
+    (committed.dates?.length || 0) +
+    (committed.difficulty?.length || 0) +
+    (committed.questionType?.length || 0) +
+    (committed.attemptStatus?.length || 0);
+
+  const hasPendingChanges = !filtersEqual(pending, committed);
+
+  const applyPending = () => setCommitted(pending);
+  const cancelPending = () => setPending(committed);
+  const clearAllCommitted = () => {
+    const empty = { years: [], dates: [], difficulty: initialFilters.difficulty || [], questionType: initialFilters.questionType || [], attemptStatus: [] };
+    setCommitted(empty);
+    setPending(empty);
+  };
 
   const buildQuestionHref = useCallback((q) => {
     const parts = new URLSearchParams();
     if (topicSlug) parts.set("topic", topicSlug);
-    (filters.years || []).forEach((y) => parts.append("year", String(y)));
-    (filters.difficulty || []).forEach((d) => parts.append("difficulty", d));
-    (filters.questionType || []).forEach((qt) => parts.append("question_type", qt));
+    (committed.years || []).forEach((y) => parts.append("year", String(y)));
+    (committed.difficulty || []).forEach((d) => parts.append("difficulty", d));
+    (committed.questionType || []).forEach((qt) => parts.append("question_type", qt));
     const qs = parts.toString();
     return `/pyq/${normSlug}/${subjectSlug}/${chapterSlug}/${q.slug}${qs ? `?${qs}` : ""}`;
-  }, [topicSlug, filters.years, filters.difficulty, filters.questionType, normSlug, subjectSlug, chapterSlug]);
+  }, [topicSlug, committed.years, committed.difficulty, committed.questionType, normSlug, subjectSlug, chapterSlug]);
 
   const goPage = (p) => { if (p >= 1 && p <= totalPages) { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); } };
-  const clearAllFilters = () => setFilters({ years: [], dates: [], difficulty: [], questionType: [], attemptStatus: [] });
 
   const filterGroupProps = {
-    C, filters, setFilters,
+    C, pending, setPending,
     availableYears, datesByYear,
     examLabel, showAttemptStatus: !!user,
-    currentYear,
+    currentYear, visibleSections,
   };
 
   return (
@@ -362,27 +454,46 @@ export default function ChapterQuestionList({
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "16px 20px 100px", display: "flex", gap: 24, alignItems: "flex-start" }}>
 
         {!isMobile && (
-          <aside style={{ width: 280, flexShrink: 0, position: "sticky", top: 16, maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 16px 20px" }}>
+          <aside style={{ width: 280, flexShrink: 0, position: "sticky", top: 16, maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 16px 20px", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <span style={{ fontSize: 14, fontWeight: 800, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
                 Filter & Sort
-                {activeFilterCount > 0 && <span style={{ background: C.accent, color: "#fff", borderRadius: 20, padding: "1px 8px", fontSize: 10, fontWeight: 800 }}>{activeFilterCount}</span>}
+                {activeCommittedCount > 0 && <span style={{ background: C.accent, color: "#fff", borderRadius: 20, padding: "1px 8px", fontSize: 10, fontWeight: 800 }}>{activeCommittedCount}</span>}
               </span>
-              {activeFilterCount > 0 && (
-                <button onClick={clearAllFilters} style={{ background: "none", border: "none", color: C.red, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Clear all</button>
+              {activeCommittedCount > 0 && (
+                <button onClick={clearAllCommitted} style={{ background: "none", border: "none", color: C.red, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Clear all</button>
               )}
             </div>
-            <FilterGroups {...filterGroupProps} />
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <FilterGroups {...filterGroupProps} />
+            </div>
+            {hasPendingChanges && (
+              <div style={{ display: "flex", gap: 8, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+                <button onClick={cancelPending} style={{ flex: 1, padding: "11px", borderRadius: 10, background: "transparent", color: C.textMuted, border: `1px solid ${C.border}`, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+                <button onClick={applyPending} style={{ flex: 2, padding: "11px", borderRadius: 10, background: C.accent, color: "#fff", border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Show Results</button>
+              </div>
+            )}
           </aside>
         )}
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ marginBottom: 16 }}>
-            <BackButton C={C} fallbackHref={`/pyq/${normSlug}/${subjectSlug}/${chapterSlug}`} />
+            <BackButton C={C} fallbackHref={`/pyq/${normSlug}/${subjectSlug}/${chapterSlug}?view=overview`} />
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 4 }}>{examLabel}{topicName ? ` › ${chapterName}` : ""}</div>
+            <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 4 }}>
+              {examLabel}{topicName ? ` › ${chapterName}` : ""}
+              {lockedKeys.length > 0 && (
+                <span style={{ marginLeft: 8, color: C.accentLight }}>
+                  ·{" "}
+                  {[
+                    (committed.difficulty || []).length > 0 ? (committed.difficulty || []).map((d) => d[0].toUpperCase() + d.slice(1)).join(", ") : null,
+                    (committed.questionType || []).length > 0 ? (committed.questionType || []).join(", ") : null,
+                  ].filter(Boolean).join(" · ")}
+                </span>
+              )}
+            </div>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: 0 }}>
               {topicName || chapterName}
             </h1>
@@ -402,8 +513,8 @@ export default function ChapterQuestionList({
             <div style={{ padding: 32, textAlign: "center", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.textMuted }}>No questions match these filters</div>
-              {activeFilterCount > 0 && (
-                <button onClick={clearAllFilters} style={{ marginTop: 12, padding: "8px 18px", borderRadius: 8, border: `1px solid ${C.accent}`, background: "transparent", color: C.accentLight, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Clear filters</button>
+              {activeCommittedCount > 0 && (
+                <button onClick={clearAllCommitted} style={{ marginTop: 12, padding: "8px 18px", borderRadius: 8, border: `1px solid ${C.accent}`, background: "transparent", color: C.accentLight, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Clear filters</button>
               )}
             </div>
           )}
@@ -454,27 +565,27 @@ export default function ChapterQuestionList({
           }}
         >
           ⚙ Filter
-          {activeFilterCount > 0 && (
-            <span style={{ background: "#fff", color: C.accent, borderRadius: 20, padding: "1px 8px", fontSize: 11, fontWeight: 800 }}>{activeFilterCount}</span>
+          {activeCommittedCount > 0 && (
+            <span style={{ background: "#fff", color: C.accent, borderRadius: 20, padding: "1px 8px", fontSize: 11, fontWeight: 800 }}>{activeCommittedCount}</span>
           )}
         </button>
       )}
 
       {isMobile && mobileOpen && (
-        <div onClick={() => setMobileOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "flex-end" }}>
+        <div onClick={() => { cancelPending(); setMobileOpen(false); }} style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "flex-end" }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", background: C.bgCard, borderRadius: "18px 18px 0 0", padding: "18px 20px 20px", maxHeight: "85vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Filter & Sort {activeFilterCount > 0 && <span style={{ background: C.accent, color: "#fff", borderRadius: 20, padding: "1px 8px", fontSize: 10, marginLeft: 4 }}>{activeFilterCount}</span>}</span>
-              <div style={{ display: "flex", gap: 10 }}>
-                {activeFilterCount > 0 && <button onClick={clearAllFilters} style={{ background: "none", border: "none", color: C.red, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Clear</button>}
-                <button onClick={() => setMobileOpen(false)} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 20, cursor: "pointer" }}>×</button>
-              </div>
+              <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Filter & Sort {activeCommittedCount > 0 && <span style={{ background: C.accent, color: "#fff", borderRadius: 20, padding: "1px 8px", fontSize: 10, marginLeft: 4 }}>{activeCommittedCount}</span>}</span>
+              <button onClick={() => { cancelPending(); setMobileOpen(false); }} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
             <FilterGroups {...filterGroupProps} />
-            <button onClick={() => setMobileOpen(false)} style={{ width: "100%", marginTop: 16, padding: "13px", borderRadius: 10, background: C.accent, color: "#fff", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Done</button>
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={() => { cancelPending(); setMobileOpen(false); }} style={{ flex: 1, padding: "13px", borderRadius: 10, background: "transparent", color: C.textMuted, border: `1px solid ${C.border}`, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => { applyPending(); setMobileOpen(false); }} style={{ flex: 2, padding: "13px", borderRadius: 10, background: C.accent, color: "#fff", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Show Results</button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
-         }
+                            }
