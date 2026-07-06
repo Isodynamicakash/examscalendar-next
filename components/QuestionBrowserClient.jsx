@@ -390,6 +390,16 @@ export default function QuestionBrowserClient({
 
   const examNumericId = EXAM_SLUG_TO_ID[normalizeExamSlug(examId)] || null;
 
+  // Remember the exam the user is currently browsing, so the Back
+  // buttons on Profile / Bookmarks can return them to the right exam
+  // page (e.g. /pyq/neet if they came from NEET). Read there via the
+  // "last_exam" localStorage key.
+  useEffect(() => {
+    if (examId && typeof window !== "undefined") {
+      localStorage.setItem("last_exam", normalizeExamSlug(examId));
+    }
+  }, [examId]);
+
   const [liveFilters, setLiveFilters] = useState({ years: [], shifts: [], dates: [], question_types: ["MCQ", "MSQ", "NUMERICAL"] });
   const [active, setActive] = useState(initialActive || EMPTY_ACTIVE);
   // "overview" -> Marks-style chapter landing (All PYQs / Topics / Difficulty buckets)
@@ -635,4 +645,4 @@ export default function QuestionBrowserClient({
     </div>
     </MathJaxContext>
   );
-                                                                         }
+    }
