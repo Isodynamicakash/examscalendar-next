@@ -54,6 +54,15 @@ function BookmarksInner() {
 
   return (
     <div>
+      <button
+        onClick={() => {
+          const last = typeof window !== "undefined" ? localStorage.getItem("last_exam") : null;
+          if (typeof window !== "undefined") window.location.assign(last ? `/pyq/${last}` : "/");
+        }}
+        style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, border: `1px solid ${T.border}`, background: T.surface, color: T.textMuted, fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}
+      >
+        ← Back
+      </button>
       <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 6px", color: T.text }}>My Bookmarks</h1>
       <p style={{ fontSize: 13, color: T.textMuted, margin: "0 0 24px" }}>Questions you've saved to revisit later.</p>
 
@@ -105,4 +114,4 @@ export default function BookmarksPage() {
       <BookmarksInner />
     </AppShell>
   );
-            }
+        }
