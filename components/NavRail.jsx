@@ -46,9 +46,16 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
     return () => window.removeEventListener("resize", fn);
   }, []);
 
+  // Send to login, remembering the current page so we come back here
+  // after a successful Google sign-in (post-login landing = where you were).
+  const goLogin = () => {
+    const here = pathname || "/";
+    router.push(`/login?next=${encodeURIComponent(here)}`);
+  };
+
   // Personalized routes require login; route to /login if logged out.
   const goGated = (href) => {
-    if (!user) { router.push("/login"); return; }
+    if (!user) { goLogin(); return; }
     router.push(href);
     router.refresh();
   };
@@ -81,7 +88,7 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
           {isDark ? Icon.sun(C.textMuted) : Icon.moon(C.textMuted)}
           <span style={{ fontSize: 10, fontWeight: 700 }}>Theme</span>
         </button>
-        <button onClick={user ? signOut : () => router.push("/login")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "none", border: "none", cursor: "pointer", color: C.textMuted, flex: 1, padding: "6px 0" }}>
+        <button onClick={user ? signOut : goLogin} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "none", border: "none", cursor: "pointer", color: C.textMuted, flex: 1, padding: "6px 0" }}>
           {user ? Icon.signout(C.textMuted) : Icon.signin(C.textMuted)}
           <span style={{ fontSize: 10, fontWeight: 700 }}>{user ? "Out" : "In"}</span>
         </button>
@@ -123,7 +130,7 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
           {isDark ? Icon.sun(C.textMuted) : Icon.moon(C.textMuted)}
           <span style={{ fontSize: 10, fontWeight: 700 }}>Theme</span>
         </button>
-        <button onClick={user ? signOut : () => router.push("/login")} title={user ? "Sign out" : "Sign in"} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, width: "100%", padding: "12px 0", background: "transparent", border: "none", cursor: "pointer", color: user ? C.red : C.accent }}
+        <button onClick={user ? signOut : goLogin} title={user ? "Sign out" : "Sign in"} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, width: "100%", padding: "12px 0", background: "transparent", border: "none", cursor: "pointer", color: user ? C.red : C.accent }}
           onMouseEnter={(e) => (e.currentTarget.style.background = C.surface)}
           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
           {user ? Icon.signout(C.red) : Icon.signin(C.accent)}
