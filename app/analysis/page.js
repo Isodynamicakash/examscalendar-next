@@ -30,7 +30,13 @@ function startOfWeek(d) {
   const x = new Date(d); const day = x.getDay(); const diff = (day + 6) % 7; // Monday start
   x.setDate(x.getDate() - diff); x.setHours(0, 0, 0, 0); return x;
 }
-function weekLabel(d) { return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }); }
+// Label a week as a range "29 Jun - 5 Jul" (its Monday through Sunday),
+// so a bar reads as a whole week rather than looking like a single day.
+function weekLabel(monday) {
+  const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
+  const fmt = (dt) => dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  return `${fmt(monday)} - ${fmt(sunday)}`;
+}
 function monthLabel(d) { return d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }); }
 
 function AnalysisInner() {
@@ -359,4 +365,4 @@ export default function AnalysisPage() {
       <AnalysisInner />
     </AppShell>
   );
-}
+  }
