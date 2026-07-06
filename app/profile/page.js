@@ -104,6 +104,15 @@ function ProfileInner() {
 
   return (
     <div>
+      <button
+        onClick={() => {
+          const last = typeof window !== "undefined" ? localStorage.getItem("last_exam") : null;
+          if (typeof window !== "undefined") window.location.assign(last ? `/pyq/${last}` : "/");
+        }}
+        style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, border: `1px solid ${C.border}`, background: C.surface, color: C.textMuted, fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}
+      >
+        ← Back
+      </button>
       <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: "0 0 20px" }}>Profile</h1>
 
       {/* Identity card */}
@@ -171,4 +180,4 @@ export default function ProfilePage() {
       <ProfileInner />
     </AppShell>
   );
-                                     }
+}
