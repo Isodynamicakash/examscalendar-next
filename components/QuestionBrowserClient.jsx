@@ -19,7 +19,7 @@
 import AuthNavButton from "./AuthNavButton";
 import NavRail from "./NavRail";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MathJaxContext } from "better-react-mathjax";
 import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
@@ -363,12 +363,14 @@ export default function QuestionBrowserClient({
   examId,
   apiBase,
   initialActive,
+  initialSubject,
   initialView,
   initialQuestions = [],
   initialTotal = 0,
 }) {
   const API_URL = apiBase || API;
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [isDark, setIsDark] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -401,7 +403,22 @@ export default function QuestionBrowserClient({
   }, [examId]);
 
   const [liveFilters, setLiveFilters] = useState({ years: [], shifts: [], dates: [], question_types: ["MCQ", "MSQ", "NUMERICAL"] });
-  const [active, setActive] = useState(initialActive || EMPTY_ACTIVE);
+  const [active, setActive] = useState(
+    initialActive || (initialSubject ? { ...EMPTY_ACTIVE, subject: initialSubject } : EMPTY_ACTIVE)
+  );
+
+  // Keep active.subject in sync with the URL's ?subject= param. When the
+  // user presses browser back/forward, the URL changes without a remount,
+  // so we mirror it into state here. This is what makes back walk
+  // chapter-overview -> subject-selected -> exam(no subject) -> home.
+  useEffect(() => {
+    const urlSubject = searchParams.get("subject") || null;
+    setActive((a) => {
+      if (a.chapter) return a; // on a chapter page; don't disturb
+      if (a.subject === urlSubject) return a;
+      return { ...a, subject: urlSubject, chapter: null, topic: null };
+    });
+  }, [searchParams]);
   // "overview" -> Marks-style chapter landing (All PYQs / Topics / Difficulty buckets)
   // "list" -> the flat filtered question list
   // Server-seeded chapter pages (SEO deep links) skip straight to "list" since
@@ -570,7 +587,13 @@ export default function QuestionBrowserClient({
             examSlug={examId}
             examLabel={EXAM_LABEL[normalizeExamSlug(examId)] || examId}
             activeSubject={active.subject}
-            onSelectSubject={(subj) => setActive((a) => ({ ...a, subject: subj, chapter: null, topic: null }))}
+            onSelectSubject={(subj) => {
+              setActive((a) => ({ ...a, subject: subj, chapter: null, topic: null }));
+              // Reflect the subject in the URL so the browser back button
+              // has a history entry to return to (subject selection screen).
+              const base = `/pyq/${normalizeExamSlug(examId)}`;
+              router.push(subj ? `${base}?subject=${subj}` : base);
+            }}
             onSelectChapter={(chap) => { router.push(`/pyq/${normalizeExamSlug(examId)}/${active.subject}/${chap}?view=overview`); router.refresh(); }}
             C={C}
           />
@@ -645,4 +668,4 @@ export default function QuestionBrowserClient({
     </div>
     </MathJaxContext>
   );
-    }
+                }
