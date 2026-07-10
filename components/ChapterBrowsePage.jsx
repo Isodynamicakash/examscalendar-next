@@ -28,12 +28,24 @@ function normalizeExamSlug(s) {
 const EXAM_SLUG_TO_ID = { "jee-main": 1, "jee-advanced": 2, neet: 3, "ssc-cgl": 6 };
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// A small palette of colorful chapter icons (emoji-based -- no asset
-// pipeline needed, renders everywhere). Assigned by chapter index so
-// each chapter gets a stable, varied look.
-const CHAPTER_ICONS = ["📐", "📏", "➡️", "🎯", "⚙️", "💡", "🔋", "🧲", "🌊", "🔬", "⚛️", "🧪", "🌡️", "🔭", "📊", "🧮", "✨", "🌀", "🔆", "💫"];
-const ICON_BGS = (C) => [C.blueBg, C.greenBg, C.purpleBg, C.orangeBg, C.accentBg, C.amberBg];
-const ICON_COLORS = (C) => [C.blue, C.green, C.purple, C.orange, C.accent, C.amber];
+// All chapters share one consistent NTA badge (these are NTA exam PYQs).
+// Subjects get a distinct emoji by slug.
+const SUBJECT_EMOJI = {
+  physics: "⚛️",
+  chemistry: "🧪",
+  mathematics: "📐",
+  maths: "📐",
+  biology: "🧬",
+  botany: "🌿",
+  zoology: "🐾",
+  "general-intelligence-reasoning": "🧩",
+  reasoning: "🧩",
+  "general-awareness": "🌍",
+  "quantitative-aptitude": "🔢",
+  "english-comprehension": "📖",
+  english: "📖",
+};
+function subjectEmoji(slug) { return SUBJECT_EMOJI[slug] || "📚"; }
 
 function FilterModal({ open, onClose, sortBy, setSortBy, C }) {
   if (!open) return null;
@@ -182,9 +194,6 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
   const classOptions = [{ value: "all", label: "All Classes" }, { value: "11", label: "Class 11" }, { value: "12", label: "Class 12" }];
   const unitOptions = [{ value: "all", label: "All Units" }, ...unitList.map((u) => ({ value: u, label: u }))];
 
-  const iconBgs = ICON_BGS(C);
-  const iconColors = ICON_COLORS(C);
-
   // Recent two years present across this subject's stats, for the
   // "2026: X · 2025: Y" mini-labels.
   const recentYears = useMemo(() => {
@@ -208,7 +217,8 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
         {/* Subject tabs */}
         <div style={{ width: 180, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6, position: "sticky", top: 70 }}>
           {examData.subjects.map((s) => (
-            <button key={s.slug} onClick={() => onSelectSubject(s.slug)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${s.slug === subject?.slug ? C.accent : C.border}`, background: s.slug === subject?.slug ? C.accentBg : "transparent", color: s.slug === subject?.slug ? C.accentLight : C.text, cursor: "pointer" }}>
+            <button key={s.slug} onClick={() => onSelectSubject(s.slug)} style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left", padding: "12px 14px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${s.slug === subject?.slug ? C.accent : C.border}`, background: s.slug === subject?.slug ? C.accentBg : "transparent", color: s.slug === subject?.slug ? C.accentLight : C.text, cursor: "pointer" }}>
+              <span style={{ fontSize: 17 }}>{subjectEmoji(s.slug)}</span>
               {s.name}
             </button>
           ))}
@@ -242,12 +252,20 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
             <Dropdown label="All Classes" value={classFilter} options={classOptions} onChange={setClassFilter} C={C} />
             {unitList.length > 0 && <Dropdown label="All Units" value={unitFilter} options={unitOptions} onChange={setUnitFilter} C={C} />}
             <button
-              onClick={() => setProgressFilter((p) => (p === "not-started" ? "all" : "not-started"))}
-              title={user ? "" : "Sign in to track progress"}
+              onClick={() => {
+                if (!user) { window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`); return; }
+                setProgressFilter((p) => (p === "not-started" ? "all" : "not-started"));
+              }}
+              title={user ? "Show chapters you haven't started" : "Sign in to track progress"}
               style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 700, border: `1px solid ${progressFilter === "not-started" ? C.accent : C.border}`, background: progressFilter === "not-started" ? C.accentBg : C.surface, color: progressFilter === "not-started" ? C.accentLight : C.textMuted, cursor: "pointer" }}
             >
               Not Started
             </button>
+            {progressFilter === "not-started" && (
+              <button onClick={() => setProgressFilter("all")} style={{ padding: "9px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${C.border}`, background: "transparent", color: C.textMuted, cursor: "pointer" }}>
+                Clear ✕
+              </button>
+            )}
             <div style={{ flex: 1 }} />
             <span style={{ fontSize: 12, color: C.textMuted }}>Showing {filtered.length} chapters</span>
           </div>
@@ -257,16 +275,13 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
               const stat = statsBySlug[ch.slug];
               const total = stat?.total ?? null;
               const attempted = attemptedBySlug[ch.slug] || 0;
-              const icon = CHAPTER_ICONS[i % CHAPTER_ICONS.length];
-              const bg = iconBgs[i % iconBgs.length];
-              const color = iconColors[i % iconColors.length];
               return (
                 <button
                   key={ch.slug}
                   onClick={() => onSelectChapter(ch.slug)}
                   style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", padding: "14px 16px", borderRadius: 12, border: `1px solid ${C.border}`, background: C.bgCard, cursor: "pointer" }}
                 >
-                  <span style={{ width: 40, height: 40, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{icon}</span>
+                  <span style={{ width: 40, height: 40, borderRadius: 10, background: C.accentBg, color: C.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, letterSpacing: 0.5, flexShrink: 0, border: `1px solid ${C.accent}44` }}>NTA</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{ch.name}</div>
                     <div style={{ fontSize: 11, color: C.textDim, marginTop: 3 }}>{ch.unit} &middot; Class {ch.class}</div>
@@ -300,4 +315,4 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
       <FilterModal open={modalOpen} onClose={() => setModalOpen(false)} sortBy={sortBy} setSortBy={setSortBy} C={C} />
     </div>
   );
-}
+                            }
