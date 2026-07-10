@@ -41,15 +41,16 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
   const [selected, setSelected] = useState(null);
   const [selectedMulti, setSelectedMulti] = useState([]);
   const [numericInput, setNumericInput] = useState("");
-  const [checked, setChecked] = useState(false);
-  const [wasCorrect, setWasCorrect] = useState(null);
-  const [revealed, setRevealed] = useState(false);
-  const [attemptNum, setAttemptNum] = useState(1);
+  const [checked, setChecked] = useState(false);       // has Check Answer been clicked this attempt
+  const [wasCorrect, setWasCorrect] = useState(null);  // result of the check
+  const [revealed, setRevealed] = useState(false);     // solution + correct-answer visible
+  const [attemptNum, setAttemptNum] = useState(1);     // 1st, 2nd, 3rd try on THIS question this session
   const [flash, setFlash] = useState(null);
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef(null);
   const flashTimeoutRef = useRef(null);
 
+  // Auth + bookmark state
   const [user, setUser] = useState(null);
   const [bookmarked, setBookmarked] = useState(null);
   const [bmBusy, setBmBusy] = useState(false);
@@ -65,6 +66,7 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
   const isNumerical = q.question_type === "NUMERICAL";
   const hasAnswer = isNumerical ? numericInput.trim() !== "" : isMSQ ? selectedMulti.length > 0 : selected !== null;
 
+  // Reset ALL state on question change (Next/Prev nav). Timer restarts.
   const resetAll = useCallback(() => {
     setSelected(null); setSelectedMulti([]); setNumericInput("");
     setChecked(false); setWasCorrect(null); setRevealed(false);
@@ -74,6 +76,9 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
     timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
   }, []);
 
+  // Solve Again: clear input + result but INCREMENT attemptNum so the
+  // next Check Answer knows this is attempt 2+ and behaves differently
+  // for wrong answers (auto-reveal instead of requiring Show Answer).
   const solveAgain = useCallback(() => {
     setSelected(null); setSelectedMulti([]); setNumericInput("");
     setChecked(false); setWasCorrect(null); setRevealed(false);
@@ -89,6 +94,24 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.slug]);
 
+  // Remember the chapter being practiced so the "Continue Solving"
+  // banner on the chapter browse page can offer to resume it. Derived
+  // from the question's own slugs (q comes from v_questions_full).
+  useEffect(() => {
+    try {
+      const examSlug = q?.exam_slug;
+      const subjectSlug = q?.subject_slug;
+      const chapterSlug = q?.chapter_slug;
+      const chName = q?.chapter_name || chapterName;
+      if (examSlug && subjectSlug && chapterSlug) {
+        localStorage.setItem("last_practiced", JSON.stringify({
+          examSlug, subjectSlug, chapterSlug, chapterName: chName,
+        }));
+      }
+    } catch {}
+  }, [q?.exam_slug, q?.subject_slug, q?.chapter_slug, q?.chapter_name, chapterName]);
+
+  // Load auth + bookmark state for this question
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -133,6 +156,9 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
     return correctOptions.includes(selected);
   };
 
+  // Record the attempt to Supabase (logged-in users only). Fire and
+  // forget -- the UI doesn't wait on it, so a slow network never
+  // slows down the reveal.
   const recordAttempt = async (correct) => {
     if (!user || !q?.id) return;
     const selectedStr = isNumerical
@@ -158,24 +184,38 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
     const correct = evaluateCorrect();
     setChecked(true);
     setWasCorrect(correct);
+
+    // Reveal rule: correct always reveals; wrong reveals only on attempt >=2
     if (correct || attemptNum >= 2) setRevealed(true);
+
     setFlash(correct ? "correct" : "incorrect");
     if (correct) playCorrectSound(); else playIncorrectSound();
     clearTimeout(flashTimeoutRef.current);
     flashTimeoutRef.current = setTimeout(() => setFlash(null), 700);
+
+    // Record for stats (background)
     recordAttempt(correct);
   };
 
+  // "Show Answer" button appears only for wrong first-attempt state,
+  // where reveal is gated. Clicking it opens the reveal.
   const showAnswerNow = () => setRevealed(true);
+
   const toggleMulti = (i) => { if (checked) return; setSelectedMulti((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i])); };
+
   const goTo = useCallback((slug) => { if (slug) { router.push(`${basePath}/${slug}${qsSuffix}`); router.refresh(); } }, [basePath, qsSuffix, router]);
 
   const isCorrectOpt = (i) => correctOptions.includes(i);
   const isSelectedOpt = (i) => (isMSQ ? selectedMulti.includes(i) : selected === i);
 
+  // Option colouring rules:
+  //   - before check: default, blue on selected
+  //   - after check, NOT revealed: red on wrongly-selected only, correct stays hidden (default look)
+  //   - after check, revealed: green on correct, red on wrongly-selected, dim on others
   const optState = (i) => {
     if (!checked) return isSelectedOpt(i) ? "sel" : "def";
     if (!revealed) {
+      // Show only their own mistake, don't leak the correct one yet
       if (isSelectedOpt(i) && !isCorrectOpt(i)) return "bad";
       return "def";
     }
@@ -197,6 +237,10 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
   const bmColor = bookmarked ? "#f59e0b" : T.textDim;
   const bmBg = bookmarked ? "#f59e0b22" : T.surface;
 
+  // Buttons visible per phase:
+  //   before check: Check Answer (enabled iff hasAnswer)
+  //   checked + revealed: Solve Again
+  //   checked + not revealed (wrong 1st): Show Answer, Solve Again
   const showCheckBtn = !checked;
   const showShowAnswerBtn = checked && !revealed;
   const showSolveAgainBtn = checked;
@@ -283,4 +327,4 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
       {chapterHref && <div style={{ textAlign: "center", marginTop: 20 }}><a href={chapterHref} style={{ fontSize: 13, color: T.textMuted }}>← Back to {chapterName} chapter list</a></div>}
     </div>
   );
-                                                                                                                                                                                                                                                                               }
+                                                                        }
