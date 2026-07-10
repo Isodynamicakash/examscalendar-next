@@ -292,7 +292,7 @@ export default function ChapterQuestionList({
     dates: initialFilters.dates || [],
     difficulty: initialFilters.difficulty || [],
     questionType: initialFilters.questionType || [],
-    attemptStatus: [],
+    attemptStatus: initialFilters.attemptStatus || [],
   });
 
   // "committed" = what the question list is currently filtered by,
@@ -314,6 +314,7 @@ export default function ChapterQuestionList({
   const [loading, setLoading] = useState(true);
 
   const [attemptMap, setAttemptMap] = useState({});
+  const [bookmarkSet, setBookmarkSet] = useState(new Set());
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -407,6 +408,14 @@ export default function ChapterQuestionList({
       });
   }, [user, questions]);
 
+  // Bookmarks for this question set (only needed for the bookmarkedOnly view).
+  useEffect(() => {
+    if (!user || !initialFilters.bookmarkedOnly || questions.length === 0) { setBookmarkSet(new Set()); return; }
+    const qIds = questions.map((q) => q.id);
+    supabase.from("bookmarks").select("question_id").in("question_id", qIds)
+      .then(({ data }) => setBookmarkSet(new Set((data || []).map((b) => b.question_id))));
+  }, [user, questions, initialFilters.bookmarkedOnly]);
+
   const visibleQuestions = useMemo(() => {
     let list = questions;
     if ((committed.dates || []).length > 0) {
@@ -416,8 +425,11 @@ export default function ChapterQuestionList({
     if (user && (committed.attemptStatus || []).length > 0) {
       list = list.filter((q) => committed.attemptStatus.includes(attemptMap[q.id] || "unattempted"));
     }
+    if (user && initialFilters.bookmarkedOnly) {
+      list = list.filter((q) => bookmarkSet.has(q.id));
+    }
     return list;
-  }, [questions, committed.dates, committed.attemptStatus, attemptMap, user]);
+  }, [questions, committed.dates, committed.attemptStatus, attemptMap, user, bookmarkSet, initialFilters.bookmarkedOnly]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -600,4 +612,4 @@ export default function ChapterQuestionList({
       )}
     </div>
   );
-            }
+                          }
