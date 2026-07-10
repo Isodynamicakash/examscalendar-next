@@ -176,8 +176,8 @@ export default function TestReportPage() {
             const badge = r.selected == null || r.selected === ""
               ? { text: "Not Answered", bg: C.surfaceHigh, fg: C.textMuted }
               : r.is_correct
-                ? { text: `Correct +${r.marks_positive}`, bg: C.greenBg, fg: C.greenText }
-                : { text: `Incorrect −${r.marks_negative}`, bg: C.redBg, fg: C.redText };
+                ? { text: `Correct +${Math.abs(r.marks_positive)}`, bg: C.greenBg, fg: C.greenText }
+                : { text: `Incorrect −${Math.abs(r.marks_negative)}`, bg: C.redBg, fg: C.redText };
             return (
               <div key={r.question_id} style={{ padding: "16px 18px", borderRadius: 12, border: `1px solid ${C.border}`, background: C.bgCard }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -239,4 +239,4 @@ function LegendRow({ color, label, value, C }) {
 }
 function Center({ children, C }) {
   return <div style={{ minHeight: "100vh", background: C.bg, color: C.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{children}</div>;
-}
+          }
