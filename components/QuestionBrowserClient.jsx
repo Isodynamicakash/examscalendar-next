@@ -668,4 +668,4 @@ export default function QuestionBrowserClient({
     </div>
     </MathJaxContext>
   );
-                }
+                  }
