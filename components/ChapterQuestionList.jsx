@@ -295,12 +295,45 @@ export default function ChapterQuestionList({
     attemptStatus: initialFilters.attemptStatus || [],
   });
 
-  // "committed" = what the question list is currently filtered by,
-  // what's in the URL / actually runs a fetch.
-  // "pending"   = what the sidebar chips currently show; local UI only
-  //               until user hits "Show Results".
-  const [committed, setCommitted] = useState(makeInitial);
-  const [pending, setPending] = useState(makeInitial);
+  // Persist committed filters per-chapter so the browser/device back
+  // button restores them after solving a question. The URL is still the
+  // primary source (question links carry the filters), but sessionStorage
+  // is a reliable fallback: if we land on this chapter with NO filters in
+  // the URL but we have a saved set from this session, we restore it.
+  const filterKey = `ec_filters:${normSlug}:${subjectSlug}:${chapterSlug}:${topicSlug || ""}`;
+
+  const readInitial = () => {
+    const fromUrl = makeInitial();
+    const hasUrlFilters =
+      (fromUrl.years.length + fromUrl.difficulty.length + fromUrl.questionType.length + fromUrl.attemptStatus.length) > 0;
+    // URL filters win. Only fall back to saved filters when the URL is bare
+    // and this isn't a special source view (bookmarked/incorrect).
+    if (hasUrlFilters || initialFilters.bookmarkedOnly) return fromUrl;
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem(filterKey);
+        if (saved) return { ...fromUrl, ...JSON.parse(saved) };
+      } catch {}
+    }
+    return fromUrl;
+  };
+
+  const [committed, setCommitted] = useState(readInitial);
+  const [pending, setPending] = useState(readInitial);
+
+  // Save committed filters whenever they change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const hasAny =
+        (committed.years?.length || 0) + (committed.difficulty?.length || 0) +
+        (committed.questionType?.length || 0) + (committed.attemptStatus?.length || 0) +
+        (committed.dates?.length || 0) > 0;
+      if (hasAny) sessionStorage.setItem(filterKey, JSON.stringify(committed));
+      else sessionStorage.removeItem(filterKey);
+    } catch {}
+  }, [committed, filterKey]);
+
 
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -649,4 +682,4 @@ export default function ChapterQuestionList({
       )}
     </div>
   );
-      }
+        }
