@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { getExam, getExamLabel, getAllExamSlugs } from "@/lib/taxonomy";
 import QuestionBrowserClient from "@/components/QuestionBrowserClient";
 
@@ -11,25 +10,18 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }) {
   const { exam } = await params;
-  const examLabel = getExamLabel(exam);
-  const title = `${examLabel} Previous Year Questions — Chapter-wise PYQs with Solutions`;
+  const examLabel = getExamLabel(exam) || exam;
+  const title = `${examLabel} Previous Year Questions (PYQs) with Solutions | ExamsCalendar`;
   const description = `Browse ${examLabel} previous year questions by subject and chapter, with detailed solutions. Free, no login required.`;
   return { title, description, alternates: { canonical: `/pyq/${exam}` } };
 }
 
-export default async function ExamPage({ params, searchParams }) {
+export default async function ExamPage({ params }) {
   const { exam } = await params;
   if (!getExam(exam)) notFound();
-  const sp = await searchParams;
-  const initialSubject = sp?.subject || null;
 
-  // The full interactive experience. If a ?subject= is present (e.g. the
-  // user pressed back to this point), pre-select it so the back button
-  // walks subject -> exam -> home instead of jumping out.
-  // Suspense is required because QuestionBrowserClient uses useSearchParams.
-  return (
-    <Suspense fallback={null}>
-      <QuestionBrowserClient examId={exam} initialSubject={initialSubject} />
-    </Suspense>
-  );
+  // The full interactive experience. No subject/chapter pre-selected;
+  // user picks from the sidebar. (Reverted the URL-driven subject
+  // experiment that broke mobile chapter selection.)
+  return <QuestionBrowserClient examId={exam} />;
 }
