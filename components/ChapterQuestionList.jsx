@@ -364,6 +364,15 @@ export default function ChapterQuestionList({
 
   // Main question fetch keyed off COMMITTED filters, never pending.
   // This is what enforces staged behavior.
+  //
+  // When a purely client-side filter is active -- bookmarkedOnly, or an
+  // attemptStatus filter (correct/incorrect/unattempted) -- we must load
+  // the WHOLE chapter and filter locally, otherwise server pagination
+  // would hide matching questions that live on other pages (the "11
+  // counted, 7 shown" bug). In that mode we fetch all pages up front and
+  // paginate the filtered result client-side.
+  const clientFilterActive = initialFilters.bookmarkedOnly || (committed.attemptStatus || []).length > 0;
+
   useEffect(() => {
     if (!examId) return;
     setLoading(true);
@@ -374,18 +383,38 @@ export default function ChapterQuestionList({
     (committed.years || []).forEach((y) => qs.append("year", String(y)));
     (committed.difficulty || []).forEach((d) => qs.append("difficulty", d));
     (committed.questionType || []).forEach((qt) => qs.append("question_type", qt));
-    qs.set("limit", String(PAGE_SIZE));
-    qs.set("offset", String((page - 1) * PAGE_SIZE));
 
-    fetch(`${apiBase}/api/questions?${qs.toString()}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setQuestions(data?.questions || []);
-        setTotal(data?.total || 0);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [examId, subjectSlug, chapterSlug, topicSlug, committed, page, apiBase]);
+    if (clientFilterActive) {
+      // Load ALL questions in scope (paginate the API at limit=100).
+      (async () => {
+        let all = [];
+        let offset = 0;
+        for (let i = 0; i < 10; i++) {
+          qs.set("limit", "100");
+          qs.set("offset", String(offset));
+          const data = await fetch(`${apiBase}/api/questions?${qs.toString()}`).then((r) => r.json()).catch(() => null);
+          if (!data?.questions?.length) break;
+          all = all.concat(data.questions);
+          if (all.length >= (data.total || 0)) break;
+          offset += 100;
+        }
+        setQuestions(all);
+        setTotal(all.length);
+        setLoading(false);
+      })();
+    } else {
+      qs.set("limit", String(PAGE_SIZE));
+      qs.set("offset", String((page - 1) * PAGE_SIZE));
+      fetch(`${apiBase}/api/questions?${qs.toString()}`)
+        .then((r) => r.json())
+        .then((data) => {
+          setQuestions(data?.questions || []);
+          setTotal(data?.total || 0);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [examId, subjectSlug, chapterSlug, topicSlug, committed, page, apiBase, clientFilterActive]);
 
   // Reset page when committed changes (not pending).
   useEffect(() => { setPage(1); }, [committed]);
@@ -431,7 +460,15 @@ export default function ChapterQuestionList({
     return list;
   }, [questions, committed.dates, committed.attemptStatus, attemptMap, user, bookmarkSet, initialFilters.bookmarkedOnly]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // In client-filter mode we paginate the FILTERED list locally; otherwise
+  // the server already returned exactly one page.
+  const totalPages = clientFilterActive
+    ? Math.max(1, Math.ceil(visibleQuestions.length / PAGE_SIZE))
+    : Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const pagedQuestions = clientFilterActive
+    ? visibleQuestions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    : visibleQuestions;
 
   const activeCommittedCount =
     (committed.years?.length || 0) +
@@ -522,7 +559,7 @@ export default function ChapterQuestionList({
               {topicName || chapterName}
             </h1>
             <div style={{ fontSize: 13, color: C.textMuted, marginTop: 4 }}>
-              {total.toLocaleString()} {topicName ? "Topic PYQs" : "PYQs"}
+              {(clientFilterActive ? visibleQuestions.length : total).toLocaleString()} {topicName ? "Topic PYQs" : "PYQs"}
               {!user && <> · <Link href="/login" style={{ color: C.accentLight }}>Sign in</Link> to track progress</>}
             </div>
           </div>
@@ -543,9 +580,9 @@ export default function ChapterQuestionList({
             </div>
           )}
 
-          {!loading && visibleQuestions.length > 0 && (
+          {!loading && pagedQuestions.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {visibleQuestions.map((q, i) => {
+              {pagedQuestions.map((q, i) => {
                 const status = user ? (attemptMap[q.id] || null) : null;
                 const number = (page - 1) * PAGE_SIZE + i + 1;
                 return (
@@ -612,4 +649,4 @@ export default function ChapterQuestionList({
       )}
     </div>
   );
-                          }
+      }
