@@ -89,6 +89,14 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
   const [sortBy, setSortBy] = useState("default");
   const [modalOpen, setModalOpen] = useState(false);
   const [progressFilter, setProgressFilter] = useState("all"); // all | not-started
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 1024);
+    fn();
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
 
   const examData = EXAM_TAXONOMY[normalizeExamSlug(examSlug)] || { subjects: [] };
   const subject = examData.subjects.find((s) => s.slug === activeSubject) || examData.subjects[0];
@@ -196,21 +204,38 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
         <BackButton C={C} fallbackHref="/" />
       </div>
 
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
-        {/* Subject tabs */}
-        <div style={{ width: 180, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6, position: "sticky", top: 70 }}>
-          {examData.subjects.map((s) => (
-            <button key={s.slug} onClick={() => onSelectSubject(s.slug)} style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left", padding: "12px 14px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${s.slug === subject?.slug ? C.accent : C.border}`, background: s.slug === subject?.slug ? C.accentBg : "transparent", color: s.slug === subject?.slug ? C.accentLight : C.text, cursor: "pointer" }}>
-              <span style={{ fontSize: 17 }}>{subjectEmoji(s.slug)}</span>
-              {s.name}
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 14 : 24, alignItems: isMobile ? "stretch" : "flex-start" }}>
+        {/* Subject nav -- horizontal icon strip on mobile, vertical sidebar on desktop */}
+        {isMobile ? (
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+            {examData.subjects.map((s) => {
+              const on = s.slug === subject?.slug;
+              return (
+                <button key={s.slug} onClick={() => onSelectSubject(s.slug)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 66, padding: "8px 6px", borderRadius: 12, border: `1px solid ${on ? C.accent : C.border}`, background: on ? C.accentBg : C.surface, color: on ? C.accentLight : C.textMuted, cursor: "pointer", flexShrink: 0 }}>
+                  <span style={{ fontSize: 20 }}>{subjectEmoji(s.slug)}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>{s.name}</span>
+                </button>
+              );
+            })}
+            <button onClick={goAnalysis} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 66, padding: "8px 6px", borderRadius: 12, border: `1px solid ${C.accent}`, background: C.accentBg, color: C.accentLight, cursor: "pointer", flexShrink: 0 }}>
+              <span style={{ fontSize: 20 }}>📊</span>
+              <span style={{ fontSize: 11, fontWeight: 700 }}>Analysis</span>
             </button>
-          ))}
-          {/* Analysis link sits below the subject list, like Marks. */}
-          <button onClick={goAnalysis} style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left", padding: "12px 14px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${C.accent}`, background: C.accentBg, color: C.accentLight, cursor: "pointer", marginTop: 4 }}>
-            <span style={{ fontSize: 17 }}>📊</span>
-            Analysis
-          </button>
-        </div>
+          </div>
+        ) : (
+          <div style={{ width: 180, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6, position: "sticky", top: 70 }}>
+            {examData.subjects.map((s) => (
+              <button key={s.slug} onClick={() => onSelectSubject(s.slug)} style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left", padding: "12px 14px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${s.slug === subject?.slug ? C.accent : C.border}`, background: s.slug === subject?.slug ? C.accentBg : "transparent", color: s.slug === subject?.slug ? C.accentLight : C.text, cursor: "pointer" }}>
+                <span style={{ fontSize: 17 }}>{subjectEmoji(s.slug)}</span>
+                {s.name}
+              </button>
+            ))}
+            <button onClick={goAnalysis} style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left", padding: "12px 14px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${C.accent}`, background: C.accentBg, color: C.accentLight, cursor: "pointer", marginTop: 4 }}>
+              <span style={{ fontSize: 17 }}>📊</span>
+              Analysis
+            </button>
+          </div>
+        )}
 
         {/* Main content */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -233,8 +258,8 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
             </button>
           )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            <button onClick={() => setModalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 20, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: isMobile ? "nowrap" : "wrap", overflowX: isMobile ? "auto" : "visible", marginBottom: isMobile ? 8 : 16, paddingBottom: isMobile ? 4 : 0 }}>
+            <button onClick={() => setModalOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 20, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>
               ⚙ Filter
             </button>
             <Dropdown label="All Classes" value={classFilter} options={classOptions} onChange={setClassFilter} C={C} />
@@ -245,18 +270,18 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
                 setProgressFilter((p) => (p === "not-started" ? "all" : "not-started"));
               }}
               title={user ? "Show chapters you haven't started" : "Sign in to track progress"}
-              style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 700, border: `1px solid ${progressFilter === "not-started" ? C.accent : C.border}`, background: progressFilter === "not-started" ? C.accentBg : C.surface, color: progressFilter === "not-started" ? C.accentLight : C.textMuted, cursor: "pointer" }}
+              style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 700, border: `1px solid ${progressFilter === "not-started" ? C.accent : C.border}`, background: progressFilter === "not-started" ? C.accentBg : C.surface, color: progressFilter === "not-started" ? C.accentLight : C.textMuted, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
             >
               Not Started
             </button>
             {progressFilter === "not-started" && (
-              <button onClick={() => setProgressFilter("all")} style={{ padding: "9px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${C.border}`, background: "transparent", color: C.textMuted, cursor: "pointer" }}>
+              <button onClick={() => setProgressFilter("all")} style={{ padding: "9px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${C.border}`, background: "transparent", color: C.textMuted, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>
                 Clear ✕
               </button>
             )}
-            <div style={{ flex: 1 }} />
-            <span style={{ fontSize: 12, color: C.textMuted }}>Showing {filtered.length} chapters</span>
+            {!isMobile && <><div style={{ flex: 1 }} /><span style={{ fontSize: 12, color: C.textMuted }}>Showing {filtered.length} chapters</span></>}
           </div>
+          {isMobile && <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>Showing {filtered.length} chapters</div>}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {filtered.map((ch, i) => {
@@ -277,11 +302,14 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     {recentYears.length > 0 && stat && (
                       <div style={{ fontSize: 12, color: C.text, marginBottom: 4, display: "flex", gap: 12, justifyContent: "flex-end" }}>
-                        {recentYears.map((y) => {
+                        {recentYears.map((y, yi) => {
                           const cnt = stat.by_year?.[String(y)] || 0;
+                          // Arrow only on the LATEST year (yi === 0), comparing
+                          // to the previous year. No arrow when equal.
+                          const isLatest = yi === 0;
                           const prev = stat.by_year?.[String(y - 1)] || 0;
-                          const arrow = cnt > prev ? "↑" : cnt < prev ? "↓" : "";
-                          const arrowColor = cnt > prev ? C.greenText : cnt < prev ? C.redText : C.textMuted;
+                          const arrow = isLatest ? (cnt > prev ? "↑" : cnt < prev ? "↓" : "") : "";
+                          const arrowColor = cnt > prev ? C.greenText : C.redText;
                           return (
                             <span key={y} style={{ whiteSpace: "nowrap" }}>
                               <span style={{ color: C.textMuted }}>{y}:</span> <strong style={{ color: C.text }}>{cnt}</strong>
@@ -312,4 +340,4 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
       <FilterModal open={modalOpen} onClose={() => setModalOpen(false)} sortBy={sortBy} setSortBy={setSortBy} C={C} />
     </div>
   );
-}
+            }
