@@ -8,7 +8,7 @@ import ChapterPageClient from "@/components/ChapterPageClient";
 // Instead these render on-demand on first visit/crawl and get cached
 // via the `revalidate` setting in lib/api.js (ISR). Same end result
 // (fast, cached, crawlable) without a build-time backend dependency.
-//ch
+
 export async function generateMetadata({ params }) {
   const { exam, subject, chapter } = await params;
   const { subject: subjectData, chapter: chapterData } = getChapter(exam, subject, chapter);
@@ -39,6 +39,7 @@ export default async function ChapterPage({ params, searchParams }) {
 
   const topic = sp?.topic || null;
   const view = sp?.view || null;
+  const source = sp?.source || null;
   const initialDifficulty = asArray(sp?.difficulty);
   const initialQuestionType = asArray(sp?.question_type);
   const initialYears = asArray(sp?.year).map((y) => parseInt(y, 10)).filter((n) => !isNaN(n));
@@ -47,12 +48,13 @@ export default async function ChapterPage({ params, searchParams }) {
 
   return (
     <ChapterPageClient
-      key={`${subject}-${chapter}-${topic || "none"}-${view || "default"}-${initialDifficulty.join(",")}-${initialQuestionType.join(",")}`}
+      key={`${subject}-${chapter}-${topic || "none"}-${view || "default"}-${source || "nosrc"}-${initialDifficulty.join(",")}-${initialQuestionType.join(",")}`}
       exam={exam}
       subject={subject}
       chapter={chapter}
       topic={topic}
       view={view}
+      source={source}
       initialDifficulty={initialDifficulty}
       initialQuestionType={initialQuestionType}
       initialYears={initialYears}
