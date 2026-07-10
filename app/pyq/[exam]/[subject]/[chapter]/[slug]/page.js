@@ -84,7 +84,13 @@ export default async function QuestionPage({ params, searchParams }) {
   };
 
   const T = DARK;
-  const chapterHref = chapterData ? `/pyq/${exam}/${subject}/${chapter}` : null;
+  // Carry the active filters (and view=list) back to the chapter list so
+  // both the in-app back link and the browser back button land on the
+  // same filtered view the user came from.
+  const chapterQs = [filterQuery, "view=list"].filter(Boolean).join("&");
+  const chapterHref = chapterData
+    ? `/pyq/${exam}/${subject}/${chapter}${chapterQs ? `?${chapterQs}` : ""}`
+    : null;
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", color: T.text, fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
@@ -144,4 +150,4 @@ export default async function QuestionPage({ params, searchParams }) {
       </main>
     </div>
   );
-}
+                                            }
