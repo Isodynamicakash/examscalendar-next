@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getExam, getExamLabel, getAllExamSlugs } from "@/lib/taxonomy";
 import QuestionBrowserClient from "@/components/QuestionBrowserClient";
 
@@ -25,5 +26,10 @@ export default async function ExamPage({ params, searchParams }) {
   // The full interactive experience. If a ?subject= is present (e.g. the
   // user pressed back to this point), pre-select it so the back button
   // walks subject -> exam -> home instead of jumping out.
-  return <QuestionBrowserClient examId={exam} initialSubject={initialSubject} />;
+  // Suspense is required because QuestionBrowserClient uses useSearchParams.
+  return (
+    <Suspense fallback={null}>
+      <QuestionBrowserClient examId={exam} initialSubject={initialSubject} />
+    </Suspense>
+  );
 }
