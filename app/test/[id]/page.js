@@ -183,7 +183,7 @@ export default function TestPage() {
       let score = 0, maxScore = 0, correct = 0, incorrect = 0, unanswered = 0;
       const answerRows = [];
       for (const q of questions) {
-        maxScore += q.marks_positive;
+        maxScore += Math.abs(q.marks_positive);
         const a = answersMap[q.question_id] || {};
         const sel = a.selected;
         const correctSet = (q.correct_option || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -198,8 +198,10 @@ export default function TestPage() {
           } else {
             isCorrect = correctSet.length === 1 && String(sel) === String(correctSet[0]);
           }
-          if (isCorrect) { score += q.marks_positive; correct += 1; }
-          else { score -= q.marks_negative; incorrect += 1; }
+          // Wrong answers subtract the penalty. Use abs() so it works
+          // whether marks_negative is stored as +1 (magnitude) or -1 (signed).
+          if (isCorrect) { score += Math.abs(q.marks_positive); correct += 1; }
+          else { score -= Math.abs(q.marks_negative); incorrect += 1; }
         }
         answerRows.push({
           test_id: id, question_id: q.question_id,
@@ -264,8 +266,8 @@ export default function TestPage() {
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                 <span style={{ fontSize: 13, fontWeight: 800, color: C.textMuted }}>Q{idx + 1}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.greenText, background: C.greenBg, padding: "2px 8px", borderRadius: 6 }}>+{cur.marks_positive}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.redText, background: C.redBg, padding: "2px 8px", borderRadius: 6 }}>−{cur.marks_negative}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.greenText, background: C.greenBg, padding: "2px 8px", borderRadius: 6 }}>+{Math.abs(cur.marks_positive)}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.redText, background: C.redBg, padding: "2px 8px", borderRadius: 6 }}>−{Math.abs(cur.marks_negative)}</span>
               </div>
 
               <MathContent text={cur.question_text} block style={{ color: C.text, fontSize: 16, marginBottom: 20 }} />
