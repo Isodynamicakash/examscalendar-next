@@ -95,13 +95,16 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
   }, [q.slug]);
 
   // Remember the chapter being practiced so the "Continue Solving"
-  // banner on the chapter browse page can offer to resume it. Derived
-  // from the question's own slugs (q comes from v_questions_full).
+  // banner on the chapter browse page can offer to resume it. The API
+  // returns subject_slug/chapter_slug on the question but NOT exam_slug,
+  // so we derive all three from basePath (/pyq/{exam}/{subject}/{chapter})
+  // which is always reliable.
   useEffect(() => {
     try {
-      const examSlug = q?.exam_slug;
-      const subjectSlug = q?.subject_slug;
-      const chapterSlug = q?.chapter_slug;
+      const parts = (basePath || "").split("/").filter(Boolean); // ["pyq", exam, subject, chapter]
+      const examSlug = parts[1];
+      const subjectSlug = parts[2] || q?.subject_slug;
+      const chapterSlug = parts[3] || q?.chapter_slug;
       const chName = q?.chapter_name || chapterName;
       if (examSlug && subjectSlug && chapterSlug) {
         localStorage.setItem("last_practiced", JSON.stringify({
@@ -109,7 +112,7 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
         }));
       }
     } catch {}
-  }, [q?.exam_slug, q?.subject_slug, q?.chapter_slug, q?.chapter_name, chapterName]);
+  }, [basePath, q?.subject_slug, q?.chapter_slug, q?.chapter_name, chapterName]);
 
   // Load auth + bookmark state for this question
   useEffect(() => {
@@ -327,4 +330,4 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
       {chapterHref && <div style={{ textAlign: "center", marginTop: 20 }}><a href={chapterHref} style={{ fontSize: 13, color: T.textMuted }}>← Back to {chapterName} chapter list</a></div>}
     </div>
   );
-                                                                        }
+              }
