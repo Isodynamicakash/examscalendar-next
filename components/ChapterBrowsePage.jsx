@@ -14,7 +14,7 @@
  * Stats gracefully degrade: if the stats endpoint or attempts aren't
  * available, the page still renders the chapter list without numbers.
  */
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { EXAM_TAXONOMY } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
 import BackButton from "./BackButton";
@@ -61,25 +61,40 @@ function FilterModal({ open, onClose, sortBy, setSortBy, C }) {
 
 function Dropdown({ label, value, options, onChange, C }) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
   const current = options.find((o) => o.value === value);
+
+  const openMenu = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setCoords({ top: r.bottom + 6, left: r.left });
+    }
+    setOpen((o) => !o);
+  };
+
   return (
-    <div style={{ position: "relative" }}>
-      <button onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 20, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+    <>
+      <button ref={btnRef} onClick={openMenu} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 20, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}>
         {current?.label || label} ▾
       </button>
       {open && (
         <>
-          <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
-          <div style={{ position: "absolute", top: "110%", left: 0, zIndex: 50, minWidth: 180, background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", boxShadow: C.shadow }}>
+          {/* Backdrop closes the menu. The menu itself is position:fixed at
+              the button's screen coords, so it escapes any overflow:auto
+              clipping (mobile filter row) and stacking context, and always
+              renders on top of the chapter cards. */}
+          <div style={{ position: "fixed", inset: 0, zIndex: 8000 }} onClick={() => setOpen(false)} />
+          <div style={{ position: "fixed", top: coords.top, left: coords.left, zIndex: 8001, minWidth: 190, maxHeight: "60vh", overflowY: "auto", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: C.shadow }}>
             {options.map((o) => (
-              <button key={o.value} onClick={() => { onChange(o.value); setOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: o.value === value ? C.accentBg : "transparent", border: "none", color: o.value === value ? C.accentLight : C.text, fontSize: 13, cursor: "pointer" }}>
+              <button key={o.value} onClick={() => { onChange(o.value); setOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 14px", background: o.value === value ? C.accentBg : "transparent", border: "none", color: o.value === value ? C.accentLight : C.text, fontSize: 13, cursor: "pointer" }}>
                 {o.label}
               </button>
             ))}
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }
 
@@ -340,4 +355,4 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
       <FilterModal open={modalOpen} onClose={() => setModalOpen(false)} sortBy={sortBy} setSortBy={setSortBy} C={C} />
     </div>
   );
-            }
+                      }
