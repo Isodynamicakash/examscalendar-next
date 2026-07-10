@@ -16,13 +16,14 @@ export async function generateMetadata({ params }) {
   return { title, description, alternates: { canonical: `/pyq/${exam}` } };
 }
 
-export default async function ExamPage({ params }) {
+export default async function ExamPage({ params, searchParams }) {
   const { exam } = await params;
   if (!getExam(exam)) notFound();
+  const sp = await searchParams;
+  const initialSubject = sp?.subject || null;
 
-  // This is the full interactive experience -- identical behavior to
-  // your current QuestionBrowser when opened from the landing page
-  // cards. No subject/chapter pre-selected; user picks from the sidebar
-  // exactly like today.
-  return <QuestionBrowserClient examId={exam} />;
+  // The full interactive experience. If a ?subject= is present (e.g. the
+  // user pressed back to this point), pre-select it so the back button
+  // walks subject -> exam -> home instead of jumping out.
+  return <QuestionBrowserClient examId={exam} initialSubject={initialSubject} />;
 }
