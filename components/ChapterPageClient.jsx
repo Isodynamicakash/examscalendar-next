@@ -22,7 +22,7 @@ import { DARK, LIGHT } from "@/lib/questionTheme";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function ChapterPageClient({
-  exam, subject, chapter, topic, view,
+  exam, subject, chapter, topic, view, source,
   initialDifficulty, initialQuestionType, initialYears,
   subjectName, chapterName, topicName, chapterTopics, examLabel,
 }) {
@@ -50,6 +50,9 @@ export default function ChapterPageClient({
         onSelectTopic={(topicSlug) => { router.push(`/pyq/${exam}/${subject}/${chapter}?topic=${topicSlug}&view=list`); router.refresh(); }}
         onSelectDifficulty={(d) => { router.push(`/pyq/${exam}/${subject}/${chapter}?view=list&difficulty=${d}`); router.refresh(); }}
         onSelectType={(t) => { router.push(`/pyq/${exam}/${subject}/${chapter}?view=list&question_type=${t}`); router.refresh(); }}
+        onViewBookmarked={() => { router.push(`/pyq/${exam}/${subject}/${chapter}?view=list&source=bookmarked`); router.refresh(); }}
+        onViewMistakes={() => { router.push(`/pyq/${exam}/${subject}/${chapter}?view=list&source=incorrect`); router.refresh(); }}
+        onViewTests={() => { router.push(`/tests?exam=${exam}&subject=${subject}&chapter=${chapter}`); }}
       />
     );
   }
@@ -59,6 +62,8 @@ export default function ChapterPageClient({
     questionType: initialQuestionType || [],
     years: initialYears || [],
     dates: [],
+    attemptStatus: source === "incorrect" ? ["incorrect"] : [],
+    bookmarkedOnly: source === "bookmarked",
   };
 
   return (
