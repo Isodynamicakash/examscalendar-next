@@ -19,6 +19,7 @@ import { EXAM_TAXONOMY } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
 import BackButton from "./BackButton";
 import { supabase } from "@/lib/supabase";
+import { chapterEmoji, subjectEmoji } from "@/lib/chapterIcons";
 
 const SLUG_ALIAS = { "jee-mains": "jee-main", "jee-adv": "jee-advanced" };
 function normalizeExamSlug(s) {
@@ -27,25 +28,6 @@ function normalizeExamSlug(s) {
 }
 const EXAM_SLUG_TO_ID = { "jee-main": 1, "jee-advanced": 2, neet: 3, "ssc-cgl": 6 };
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-// All chapters share one consistent NTA badge (these are NTA exam PYQs).
-// Subjects get a distinct emoji by slug.
-const SUBJECT_EMOJI = {
-  physics: "⚛️",
-  chemistry: "🧪",
-  mathematics: "📐",
-  maths: "📐",
-  biology: "🧬",
-  botany: "🌿",
-  zoology: "🐾",
-  "general-intelligence-reasoning": "🧩",
-  reasoning: "🧩",
-  "general-awareness": "🌍",
-  "quantitative-aptitude": "🔢",
-  "english-comprehension": "📖",
-  english: "📖",
-};
-function subjectEmoji(slug) { return SUBJECT_EMOJI[slug] || "📚"; }
 
 function FilterModal({ open, onClose, sortBy, setSortBy, C }) {
   if (!open) return null;
@@ -172,12 +154,16 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("last_practiced");
-      if (raw) {
-        const p = JSON.parse(raw);
-        if (p?.examSlug === normSlug) setLastPracticed(p);
+      if (!raw) { setLastPracticed(null); return; }
+      const p = JSON.parse(raw);
+      // Show only when it belongs to the exam AND subject currently in view.
+      if (p?.examSlug === normSlug && p?.subjectSlug === subject?.slug) {
+        setLastPracticed(p);
+      } else {
+        setLastPracticed(null);
       }
-    } catch {}
-  }, [normSlug]);
+    } catch { setLastPracticed(null); }
+  }, [normSlug, subject?.slug]);
 
   const filtered = useMemo(() => {
     let list = annotated.filter(
@@ -206,11 +192,8 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 16px 60px" }}>
-      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+      <div style={{ marginBottom: 16 }}>
         <BackButton C={C} fallbackHref="/" />
-        <button onClick={goAnalysis} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 20, border: `1px solid ${C.accent}`, background: C.accentBg, color: C.accentLight, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-          📊 Analysis
-        </button>
       </div>
 
       <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
@@ -222,6 +205,11 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
               {s.name}
             </button>
           ))}
+          {/* Analysis link sits below the subject list, like Marks. */}
+          <button onClick={goAnalysis} style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left", padding: "12px 14px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${C.accent}`, background: C.accentBg, color: C.accentLight, cursor: "pointer", marginTop: 4 }}>
+            <span style={{ fontSize: 17 }}>📊</span>
+            Analysis
+          </button>
         </div>
 
         {/* Main content */}
@@ -232,7 +220,7 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
           </div>
 
           {/* Continue Solving banner */}
-          {lastPracticed && lastPracticed.subjectSlug === subject?.slug && (
+          {lastPracticed && (
             <button
               onClick={() => onSelectChapter(lastPracticed.chapterSlug)}
               style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left", padding: "14px 18px", borderRadius: 12, border: `1px solid ${C.accent}`, background: C.accentBg, cursor: "pointer", marginBottom: 16 }}
@@ -281,21 +269,30 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
                   onClick={() => onSelectChapter(ch.slug)}
                   style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", padding: "14px 16px", borderRadius: 12, border: `1px solid ${C.border}`, background: C.bgCard, cursor: "pointer" }}
                 >
-                  <span style={{ width: 40, height: 40, borderRadius: 10, background: C.accentBg, color: C.accentLight, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, letterSpacing: 0.5, flexShrink: 0, border: `1px solid ${C.accent}44` }}>NTA</span>
+                  <span style={{ width: 42, height: 42, borderRadius: 11, background: C.surfaceHigh, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{chapterEmoji(ch.slug, subject?.slug)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{ch.name}</div>
-                    <div style={{ fontSize: 11, color: C.textDim, marginTop: 3 }}>{ch.unit} &middot; Class {ch.class}</div>
+                    <div style={{ fontSize: 11, color: C.textMuted, marginTop: 3 }}>{ch.unit} &middot; Class {ch.class}</div>
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     {recentYears.length > 0 && stat && (
-                      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 3 }}>
-                        {recentYears.map((y) => (
-                          <span key={y} style={{ marginLeft: 8 }}>{y}: <strong style={{ color: C.text }}>{stat.by_year?.[String(y)] || 0}</strong></span>
-                        ))}
+                      <div style={{ fontSize: 12, color: C.text, marginBottom: 4, display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                        {recentYears.map((y) => {
+                          const cnt = stat.by_year?.[String(y)] || 0;
+                          const prev = stat.by_year?.[String(y - 1)] || 0;
+                          const arrow = cnt > prev ? "↑" : cnt < prev ? "↓" : "";
+                          const arrowColor = cnt > prev ? C.greenText : cnt < prev ? C.redText : C.textMuted;
+                          return (
+                            <span key={y} style={{ whiteSpace: "nowrap" }}>
+                              <span style={{ color: C.textMuted }}>{y}:</span> <strong style={{ color: C.text }}>{cnt}</strong>
+                              {arrow && <span style={{ color: arrowColor, fontWeight: 800, marginLeft: 2 }}>{arrow}</span>}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                     {total != null && (
-                      <div style={{ fontSize: 12, fontWeight: 700, color: attempted > 0 ? C.green : C.textDim }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: attempted > 0 ? C.greenText : C.textMuted }}>
                         {attempted}/{total} Qs
                       </div>
                     )}
@@ -315,4 +312,4 @@ export default function ChapterBrowsePage({ examSlug, examLabel, activeSubject, 
       <FilterModal open={modalOpen} onClose={() => setModalOpen(false)} sortBy={sortBy} setSortBy={setSortBy} C={C} />
     </div>
   );
-                            }
+}
