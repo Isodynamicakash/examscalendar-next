@@ -9,6 +9,7 @@
  */
 import { useState, useEffect } from "react";
 import BackButton from "./BackButton";
+import TestCreateModal from "./TestCreateModal";
 
 const EXAM_SLUG_TO_ID = { "jee-main": 1, "jee-advanced": 2, neet: 3, "ssc-cgl": 6 };
 const SLUG_ALIAS = { "jee-mains": "jee-main", "jee-adv": "jee-advanced" };
@@ -23,6 +24,7 @@ export default function ChapterOverview({
   onViewAll, onSelectTopic, onSelectDifficulty, onSelectType,
 }) {
   const [counts, setCounts] = useState(null);
+  const [testOpen, setTestOpen] = useState(false);
 
   useEffect(() => {
     if (!subject || !chapter) return;
@@ -92,6 +94,9 @@ export default function ChapterOverview({
         <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>
           {examLabel} &middot; {counts ? counts.total.toLocaleString() : loadingLabel} PYQs | {chapter.topics?.length || 0} Topics
         </p>
+        <button onClick={() => setTestOpen(true)} style={{ marginTop: 14, padding: "11px 26px", borderRadius: 24, background: C.accent, color: "#fff", border: "none", fontSize: 14, fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
+          📝 Create Chapter Test
+        </button>
       </div>
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 24 }}>
@@ -132,6 +137,17 @@ export default function ChapterOverview({
           </div>
         </>
       )}
+
+      <TestCreateModal
+        open={testOpen}
+        onClose={() => setTestOpen(false)}
+        C={C}
+        examSlug={normalizeExamSlug(examSlug)}
+        subjectSlug={subject.slug}
+        chapterSlug={chapter.slug}
+        topicSlug={null}
+        scopeLabel={`${chapter.name} · ${examLabel}`}
+      />
     </div>
   );
 }
