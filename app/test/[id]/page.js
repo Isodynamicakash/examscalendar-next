@@ -19,6 +19,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import MathContent from "@/components/MathContent";
+import MathJaxProvider from "@/components/MathJaxProvider";
 import { supabase } from "@/lib/supabase";
 import { DARK, LIGHT } from "@/lib/questionTheme";
 
@@ -245,6 +246,7 @@ export default function TestPage() {
   const answeredCount = questions.filter((q) => { const a = answersMap[q.question_id]; return a?.selected != null && a?.selected !== ""; }).length;
 
   return (
+    <MathJaxProvider>
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif", display: "flex", flexDirection: "column" }}>
       {/* Top bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: C.nav, position: "sticky", top: 0, zIndex: 100 }}>
@@ -349,6 +351,7 @@ export default function TestPage() {
         </div>
       )}
     </div>
+    </MathJaxProvider>
   );
 }
 
@@ -361,4 +364,4 @@ function Legend({ c, label, C }) {
 }
 function Center({ children, C }) {
   return <div style={{ minHeight: "100vh", background: C.bg, color: C.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{children}</div>;
-            }
+}
