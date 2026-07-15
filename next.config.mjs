@@ -1,9 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // Forces Next.js to compile static HTML/CSS/JS files
-  images: {
-    unoptimized: true, // Essential: Disables dynamic image optimizations unsupported by mobile wraps
-  },
+  ...(process.env.BUILD_TARGET === 'cordova'
+    ? {
+        output: 'export',
+        images: {
+          unoptimized: true,
+        },
+      }
+    : {}),
 };
 
 export default nextConfig;
