@@ -15,8 +15,12 @@
  *
  * Answers are persisted to test_answers as the user goes (fire-and-forget)
  * so a refresh doesn't lose progress.
+ *
+ * NOTE: useSearchParams() requires a Suspense boundary under static
+ * export (output: 'export'), so the real page body lives in
+ * TestPageInner and the default export just wraps it.
  */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import MathContent from "@/components/MathContent";
 import MathJaxProvider from "@/components/MathJaxProvider";
@@ -26,6 +30,14 @@ import { DARK, LIGHT } from "@/lib/questionTheme";
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
 export default function TestPage() {
+  return (
+    <Suspense fallback={null}>
+      <TestPageInner />
+    </Suspense>
+  );
+}
+
+function TestPageInner() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const router = useRouter();
@@ -368,4 +380,4 @@ function Legend({ c, label, C }) {
 }
 function Center({ children, C }) {
   return <div style={{ minHeight: "100vh", background: C.bg, color: C.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{children}</div>;
-     }
+        }
