@@ -9,8 +9,12 @@
  *
  * All data is read back from tests + test_questions + test_answers +
  * question content (v_questions_full) + answers table.
+ *
+ * NOTE: useSearchParams() requires a Suspense boundary under static
+ * export (output: 'export'), so the real page body lives in
+ * TestReportPageInner and the default export just wraps it.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import MathContent from "@/components/MathContent";
 import MathJaxProvider from "@/components/MathJaxProvider";
@@ -20,6 +24,14 @@ import { DARK, LIGHT } from "@/lib/questionTheme";
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
 export default function TestReportPage() {
+  return (
+    <Suspense fallback={null}>
+      <TestReportPageInner />
+    </Suspense>
+  );
+}
+
+function TestReportPageInner() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const router = useRouter();
@@ -241,4 +253,4 @@ function LegendRow({ color, label, value, C }) {
 }
 function Center({ children, C }) {
   return <div style={{ minHeight: "100vh", background: C.bg, color: C.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{children}</div>;
-          }
+    }
