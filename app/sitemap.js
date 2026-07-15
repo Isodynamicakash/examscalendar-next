@@ -11,28 +11,26 @@ import { getAllChapterParams, getAllExamSlugs } from "@/lib/taxonomy";
 // comes from anyway) — wire the question-level loop in once that
 // endpoint exists (marked TODO below).
 
+export const dynamic = "force-static";
+
 export default async function sitemap() {
   const base = process.env.SITE_URL || "https://www.examscalendar.com";
   const now = new Date();
-
   const staticEntries = [
     { url: base, lastModified: now, changeFrequency: "daily", priority: 1 },
   ];
-
   const examEntries = getAllExamSlugs().map((exam) => ({
     url: `${base}/pyq/${exam}`,
     lastModified: now,
     changeFrequency: "weekly",
     priority: 0.9,
   }));
-
   const chapterEntries = getAllChapterParams().map(({ exam, subject, chapter }) => ({
     url: `${base}/pyq/${exam}/${subject}/${chapter}`,
     lastModified: now,
     changeFrequency: "weekly",
     priority: 0.8,
   }));
-
   // TODO once you add GET /api/sitemap on the backend:
   // const API_BASE = process.env.API_BASE_URL || "http://localhost:8000";
   // const res = await fetch(`${API_BASE}/api/sitemap`);
@@ -43,6 +41,5 @@ export default async function sitemap() {
   //   changeFrequency: "monthly",
   //   priority: 0.6,
   // }));
-
   return [...staticEntries, ...examEntries, ...chapterEntries];
 }
