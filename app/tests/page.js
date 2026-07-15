@@ -44,8 +44,8 @@ function TestsInner() {
   }, [exam, subject, chapter]);
 
   const open = (t) => {
-    if (t.status === "completed") router.push(`/test/${t.id}/report`);
-    else router.push(`/test/${t.id}`);
+    if (t.status === "completed") router.push(`/test/report?id=${t.id}`);
+    else router.push(`/test?id=${t.id}`);
   };
 
   const shown = tests.filter((t) => filter === "all" ? true : filter === "completed" ? t.status === "completed" : t.status !== "completed");
@@ -122,4 +122,4 @@ function TestsInner() {
 
 export default function TestsPage() {
   return <Suspense fallback={null}><TestsInner /></Suspense>;
-                      }
+                  }
