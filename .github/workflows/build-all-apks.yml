@@ -1,0 +1,69 @@
+name: Build Android Debug & Release APKs
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual trigger from the Actions tab UI
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Pull the codebase
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # 2. Initialize Node.js Environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Setup Android-compatible Java Environment
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 4. Install dependencies and compile Next.js static files
+      - name: Build Next.js Static Export
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          npm install
+          npm run build
+
+      # 5. Setup Cordova Environment Globally
+      - name: Install Cordova
+        run: npm install -g cordova
+
+      # 6. Build both APK platforms inside Cordova Workspace
+      - name: Build Cordova Android APKs
+        run: |
+          cordova create cordova_app com.aivatika.examscalenderapp ExamsCalenderApp
+          cd cordova_app
+          cordova platform add android
+
+          # Clean Cordova defaults and replace with your compiled Next.js output
+          rm -rf www/*
+          cp -r ../out/* www/
+
+          # Compile standard testing debug APK
+          cordova build android --no-telemetry
+
+          # Compile production release APK forced to package as a standalone .apk instead of an .aab
+          cordova build android --release "--" --packageType=apk --no-telemetry
+
+      # 7. Collect and upload both outputs into a clean downloadable zip file
+      - name: Upload Both Generated APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: examscalendar-android-apks
+          path: |
+            cordova_app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+            cordova_app/platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
