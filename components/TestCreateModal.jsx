@@ -11,7 +11,7 @@
  *   3. Pick question count (any number up to available) + duration
  *      (auto = count x 2 min, editable).
  *   4. Generate -> creates tests + test_questions rows in Supabase, then
- *      navigates to /test/{id}.
+ *      navigates to /test?id={id}.
  *
  * Source filters are the user's progress layered on top of the scope's
  * questions:
@@ -200,7 +200,7 @@ export default function TestCreateModal({
       if (qErr) throw qErr;
 
       onClose?.();
-      router.push(`/test/${test.id}`);
+      router.push(`/test?id=${test.id}`);
     } catch (e) {
       console.error("Test generation failed:", e);
       setPopup("Something went wrong creating the test. Please try again.");
@@ -281,4 +281,4 @@ export default function TestCreateModal({
       )}
     </div>
   );
-                                                     }
+                         }
