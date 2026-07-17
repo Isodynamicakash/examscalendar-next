@@ -118,11 +118,11 @@ export default function ChapterOverview({
       onClick={onClick}
       style={{
         flex: 1, minWidth: 220, textAlign: "left", padding: "20px 22px", borderRadius: 14,
-        border: `1.5px solid ${C.border}`, background: C.bgCard, cursor: "pointer", transition: "border-color 0.15s",
-        boxShadow: C.shadow,
+        border: `2px solid ${accent || C.accent}`, background: C.bgCard, cursor: "pointer", transition: "box-shadow 0.15s",
+        boxShadow: `${C.shadow}, 0 0 14px ${accent || C.accent}55`,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = accent || C.accent)}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}
+      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `${C.shadow}, 0 0 22px ${accent || C.accent}aa`)}
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = `${C.shadow}, 0 0 14px ${accent || C.accent}55`)}
     >
       <div style={{ fontSize: 17, fontWeight: 800, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
         {title} <span style={{ color: accent || C.accent }}>→</span>
@@ -148,9 +148,9 @@ export default function ChapterOverview({
     return (
       <button
         onClick={onClick}
-        style={{ textAlign: "left", padding: "16px 18px", borderRadius: 14, border: `1.5px solid ${C.border}`, background: C.bgCard, cursor: "pointer", transition: "border-color 0.15s", boxShadow: C.shadow }}
-        onMouseEnter={(e) => (e.currentTarget.style.borderColor = accent)}
-        onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}
+        style={{ textAlign: "left", padding: "16px 18px", borderRadius: 14, border: `2px solid ${accent}`, background: C.bgCard, cursor: "pointer", transition: "box-shadow 0.15s", boxShadow: `${C.shadow}, 0 0 14px ${accent}55` }}
+        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `${C.shadow}, 0 0 22px ${accent}aa`)}
+        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = `${C.shadow}, 0 0 14px ${accent}55`)}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, background: tone.bg }}>{icon}</span>
@@ -168,9 +168,9 @@ export default function ChapterOverview({
     return (
       <button
         onClick={onClick}
-        style={{ textAlign: "left", padding: "16px 18px", borderRadius: 14, border: `1.5px solid ${C.border}`, background: C.bgCard, cursor: "pointer", transition: "border-color 0.15s", boxShadow: C.shadow }}
-        onMouseEnter={(e) => (e.currentTarget.style.borderColor = accent)}
-        onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}
+        style={{ textAlign: "left", padding: "16px 18px", borderRadius: 14, border: `2px solid ${accent}`, background: C.bgCard, cursor: "pointer", transition: "box-shadow 0.15s", boxShadow: `${C.shadow}, 0 0 14px ${accent}55` }}
+        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `${C.shadow}, 0 0 22px ${accent}aa`)}
+        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = `${C.shadow}, 0 0 14px ${accent}55`)}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, background: tone.bg }}>{icon}</span>
@@ -205,7 +205,7 @@ export default function ChapterOverview({
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 24 }}>
         <Card title="All Previous Year Qs" subtitle={`${counts ? counts.total.toLocaleString() : loadingLabel} PYQs`} onClick={onViewAll} accent={C.blue} />
         {chapter.topics?.length > 0 && (
-          <div style={{ flex: 1, minWidth: 220, textAlign: "left", padding: "20px 22px", borderRadius: 14, border: `1.5px solid ${C.border}`, background: C.bgCard, boxShadow: C.shadow }}>
+          <div style={{ flex: 1, minWidth: 220, textAlign: "left", padding: "20px 22px", borderRadius: 14, border: `2px solid ${C.purple}`, background: C.bgCard, boxShadow: `${C.shadow}, 0 0 14px ${C.purple}55` }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 4 }}>Topic-Wise PYQs</div>
             <div style={{ fontSize: 13, color: C.textSub, marginBottom: 12 }}>{chapter.topics.length} Topics</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 160, overflowY: "auto" }}>
@@ -289,7 +289,7 @@ export default function ChapterOverview({
 
       {popup && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9100, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setPopup(null)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: C.bgCard, border: `1.5px solid ${C.border}`, borderRadius: 16, padding: "24px 22px", maxWidth: 340, textAlign: "center", boxShadow: C.dropShadow }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.bgCard, border: `2px solid ${C.accent}`, borderRadius: 16, padding: "24px 22px", maxWidth: 340, textAlign: "center", boxShadow: `${C.dropShadow}, 0 0 20px ${C.accent}66` }}>
             <div style={{ fontSize: 30, marginBottom: 10 }}>📭</div>
             <p style={{ fontSize: 14, color: C.text, margin: "0 0 18px", lineHeight: 1.5 }}>{popup}</p>
             <button onClick={() => setPopup(null)} style={{ padding: "10px 26px", borderRadius: 10, background: C.accent, color: "#fff", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Got it</button>
