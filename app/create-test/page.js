@@ -25,7 +25,18 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { DARK, LIGHT } from "@/lib/questionTheme";
 import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
+import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
+
+const EXAM_SLUG_TO_ID = { "jee-main": 1, "jee-advanced": 2, neet: 3 };
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const CURRENT_YEAR = new Date().getFullYear();
+
+// JEE Advanced uses flat +4/-1 for now; others use per-question marks.
+function marksFor(examSlug, q) {
+  if (examSlug === "jee-advanced") return { pos: 4, neg: 1 };
+  return { pos: Number(q.marks_positive ?? 4), neg: Number(q.marks_negative ?? 1) };
+}
 
 // Exams available for full custom tests (SSC excluded).
 const TEST_EXAMS = ["jee-main", "jee-advanced", "neet"];
@@ -52,6 +63,22 @@ function CreateTestInner() {
   const [topics, setTopics] = useState({});                // "subj:chap" -> Set | "ALL"
   const [openDropdown, setOpenDropdown] = useState(null);  // "subj:chap" whose topic list is open
   const [error, setError] = useState("");
+
+  // Step 4 (config) state
+  const [step, setStep] = useState("select");   // "select" | "config"
+  const [source, setSource] = useState("all");  // all | bookmarked | incorrect
+  const [yearFilter, setYearFilter] = useState("all"); // all | last1 | last3 | last5 | last10
+  const [count, setCount] = useState(20);
+  const [durationMin, setDurationMin] = useState(40);
+  const [durationEdited, setDurationEdited] = useState(false);
+  const [pool, setPool] = useState(null);       // resolved question pool for current selection+filters
+  const [poolLoading, setPoolLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    if (!durationEdited) setDurationMin(Math.max(1, count * 2));
+  }, [count, durationEdited]);
 
   const examData = exam ? EXAM_TAXONOMY[exam] : null;
 
@@ -137,21 +164,120 @@ function CreateTestInner() {
     return true;
   };
 
-  const onContinue = () => {
+  // Build the list of {subjectSlug, chapterSlug, topics} selections.
+  const buildSelections = () =>
+    [...chapters].map((key) => {
+      const [subjectSlug, chapterSlug] = key.split(":");
+      const cur = topics[key];
+      return { subjectSlug, chapterSlug, topics: cur === "ALL" || cur == null ? "ALL" : [...cur] };
+    });
+
+  // Year filter -> min year (inclusive). null = all years.
+  const minYearFor = (yf) => {
+    if (yf === "last1") return CURRENT_YEAR;
+    if (yf === "last3") return CURRENT_YEAR - 2;
+    if (yf === "last5") return CURRENT_YEAR - 4;
+    if (yf === "last10") return CURRENT_YEAR - 9;
+    return null;
+  };
+
+  const onContinue = async () => {
     if (!validate()) return;
-    // Phase 5b will pick this selection up. For now, stash it and show a
-    // placeholder so the selection UI can be verified end to end.
-    const payload = {
-      exam,
-      selections: [...chapters].map((key) => {
-        const [subjectSlug, chapterSlug] = key.split(":");
-        const cur = topics[key];
-        return { subjectSlug, chapterSlug, topics: cur === "ALL" || cur == null ? "ALL" : [...cur] };
-      }),
-    };
-    sessionStorage.setItem("ec_create_test_selection", JSON.stringify(payload));
     setError("");
-    alert("Selection saved ✓ (Step 4: count / duration / source / year comes next — Phase 5b).");
+    setStep("config");
+    // Load the base pool (all questions across selected chapters/topics),
+    // plus the user's bookmark/attempt sets for source filtering.
+    setPoolLoading(true);
+    const { data: sess } = await supabase.auth.getSession();
+    const u = sess?.session?.user || null;
+    setUser(u);
+
+    const examId = EXAM_SLUG_TO_ID[exam];
+    const selections = buildSelections();
+
+    // Fetch questions per chapter (the API filters by chapter; topic
+    // filtering is applied client-side against the returned rows).
+    let all = [];
+    for (const sel of selections) {
+      let offset = 0;
+      for (let i = 0; i < 5; i++) {
+        const params = new URLSearchParams({ exam_id: String(examId), subject: sel.subjectSlug, chapter: sel.chapterSlug, limit: "100", offset: String(offset) });
+        const res = await fetch(`${API_URL}/api/questions?${params}`).then((r) => r.json()).catch(() => null);
+        if (!res?.questions?.length) break;
+        // Topic filter (if not ALL).
+        const rows = sel.topics === "ALL" ? res.questions : res.questions.filter((q) => sel.topics.includes(q.topic_slug));
+        all = all.concat(rows);
+        if ((offset + 100) >= (res.total || 0)) break;
+        offset += 100;
+      }
+    }
+
+    // User history for source filtering.
+    let bookmarkIds = new Set(), incorrectIds = new Set();
+    if (u) {
+      const idSet = new Set(all.map((q) => q.id));
+      const { data: bms } = await supabase.from("bookmarks").select("question_id");
+      bookmarkIds = new Set((bms || []).map((b) => b.question_id).filter((id) => idSet.has(id)));
+      const { data: atts } = await supabase.from("user_attempts").select("question_id, is_correct, attempted_at").order("attempted_at", { ascending: true });
+      const latest = new Map();
+      (atts || []).forEach((a) => { if (idSet.has(a.question_id)) latest.set(a.question_id, a.is_correct); });
+      latest.forEach((ok, qid) => { if (!ok) incorrectIds.add(qid); });
+    }
+
+    setPool({ all, bookmarkIds, incorrectIds });
+    setPoolLoading(false);
+  };
+
+  // Apply source + year filters to the base pool.
+  const filteredPool = useMemo(() => {
+    if (!pool) return [];
+    let list = pool.all;
+    const minYear = minYearFor(yearFilter);
+    if (minYear) list = list.filter((q) => Number(q.year) >= minYear);
+    if (source === "bookmarked") list = list.filter((q) => pool.bookmarkIds.has(q.id));
+    else if (source === "incorrect") list = list.filter((q) => pool.incorrectIds.has(q.id));
+    return list;
+  }, [pool, source, yearFilter]);
+
+  useEffect(() => {
+    const max = filteredPool.length;
+    if (max > 0) setCount((c) => Math.min(Math.max(1, c), max));
+  }, [filteredPool.length]);
+
+  const generate = async () => {
+    if (!user) { router.push(`/login?next=/create-test`); return; }
+    if (filteredPool.length === 0) { setError("No questions match these filters. Try changing source or year."); return; }
+    setGenerating(true);
+    try {
+      const shuffled = [...filteredPool].sort(() => Math.random() - 0.5).slice(0, count);
+      const firstSel = buildSelections()[0];
+      const { data: test, error: tErr } = await supabase.from("tests").insert({
+        user_id: user.id,
+        exam_slug: exam,
+        subject_slug: firstSel?.subjectSlug || null,
+        chapter_slug: null,       // multi-chapter test
+        topic_slug: null,
+        source,
+        year_filter: yearFilter === "all" ? null : yearFilter,
+        total_questions: shuffled.length,
+        duration_secs: durationMin * 60,
+        status: "in_progress",
+      }).select().single();
+      if (tErr) throw tErr;
+
+      const rows = shuffled.map((q, i) => {
+        const m = marksFor(exam, q);
+        return { test_id: test.id, question_id: q.id, position: i + 1, marks_positive: m.pos, marks_negative: m.neg };
+      });
+      const { error: qErr } = await supabase.from("test_questions").insert(rows);
+      if (qErr) throw qErr;
+
+      router.push(`/test/${test.id}`);
+    } catch (e) {
+      console.error("Generate failed:", e);
+      setError("Something went wrong creating the test. Please try again.");
+      setGenerating(false);
+    }
   };
 
   // --- counts for the summary ---------------------------------------------
@@ -162,6 +288,7 @@ function CreateTestInner() {
       <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 4px" }}>Create a Test</h1>
       <p style={{ fontSize: 14, color: C.textMuted, margin: "0 0 24px" }}>Pick an exam, subjects, and chapters. Then choose how many questions and which years.</p>
 
+      {step === "select" && (<>
       {/* Step 1 -- Exam */}
       <Section n={1} title="Choose your exam" C={C}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
@@ -261,6 +388,89 @@ function CreateTestInner() {
           </div>
         </div>
       )}
+      </>)}
+
+      {step === "config" && (
+        <div>
+          <button onClick={() => setStep("select")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 20, border: `1px solid ${C.border}`, background: C.surface, color: C.textMuted, fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 20 }}>← Edit selection</button>
+
+          {poolLoading ? (
+            <div style={{ padding: 40, textAlign: "center", color: C.textMuted }}>Loading questions…</div>
+          ) : (
+            <>
+              {/* Source */}
+              <Section n={4} title="Create test from" C={C}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+                  {[
+                    { key: "all", label: "All Questions", icon: "📋" },
+                    { key: "incorrect", label: "Incorrect Qs", icon: "❌" },
+                    { key: "bookmarked", label: "Bookmarked Qs", icon: "🔖" },
+                  ].map((s) => {
+                    const on = source === s.key;
+                    return (
+                      <button key={s.key} onClick={() => { if (s.key !== "all" && !user) { setError("Sign in to use this filter."); return; } setError(""); setSource(s.key); }}
+                        style={{ padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${on ? C.accent : C.border}`, background: on ? C.accentBg : C.bgCard, color: on ? C.accentLight : C.text, fontWeight: 700, fontSize: 14, cursor: "pointer", textAlign: "left" }}>
+                        <span style={{ fontSize: 18, marginRight: 8 }}>{s.icon}</span>{s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Section>
+
+              {/* Year */}
+              <Section n={5} title="Year of papers" C={C}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {[
+                    { key: "all", label: "All Years" },
+                    { key: "last1", label: "Past Year" },
+                    { key: "last3", label: "Past 3 Years" },
+                    { key: "last5", label: "Past 5 Years" },
+                    { key: "last10", label: "Past 10 Years" },
+                  ].map((y) => {
+                    const on = yearFilter === y.key;
+                    return (
+                      <button key={y.key} onClick={() => setYearFilter(y.key)}
+                        style={{ padding: "10px 18px", borderRadius: 20, border: `1.5px solid ${on ? C.accent : C.border}`, background: on ? C.accentBg : C.bgCard, color: on ? C.accentLight : C.textMuted, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                        {y.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Section>
+
+              {/* Count */}
+              <Section n={6} title="Number of questions" C={C}>
+                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 10 }}>Available with these filters: <strong style={{ color: C.text }}>{filteredPool.length}</strong> Qs</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {[10, 20, 30, 50, 75, 100].filter((n) => n <= filteredPool.length).map((n) => (
+                    <button key={n} onClick={() => setCount(n)} style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: `1.5px solid ${count === n ? C.accent : C.border}`, background: count === n ? C.accentBg : C.bgCard, color: count === n ? C.accentLight : C.textMuted, cursor: "pointer" }}>{n} Qs</button>
+                  ))}
+                </div>
+                <input type="number" min={1} max={filteredPool.length || 1} value={count}
+                  onChange={(e) => setCount(Math.min(filteredPool.length || 1, Math.max(1, parseInt(e.target.value || "1", 10))))}
+                  style={{ width: "100%", maxWidth: 220, padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, background: C.bgCard, color: C.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+              </Section>
+
+              {/* Duration */}
+              <Section n={7} title="Test duration" C={C}>
+                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 10 }}>Recommended: {count * 2} min</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, maxWidth: 320 }}>
+                  <button onClick={() => { setDurationEdited(true); setDurationMin((d) => Math.max(1, d - 5)); }} style={{ padding: "9px 18px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontWeight: 800, cursor: "pointer" }}>− 5m</button>
+                  <div style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 800 }}>{durationMin} min</div>
+                  <button onClick={() => { setDurationEdited(true); setDurationMin((d) => d + 5); }} style={{ padding: "9px 18px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontWeight: 800, cursor: "pointer" }}>+ 5m</button>
+                </div>
+              </Section>
+
+              {error && <div style={{ fontSize: 13, color: C.redText, background: C.redBg, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{error}</div>}
+
+              <button onClick={generate} disabled={generating || filteredPool.length === 0}
+                style={{ width: "100%", padding: "15px", borderRadius: 12, background: generating || filteredPool.length === 0 ? C.surfaceHigh : C.accent, color: generating || filteredPool.length === 0 ? C.textDim : "#fff", border: "none", fontWeight: 800, fontSize: 16, cursor: generating ? "wait" : "pointer" }}>
+                {generating ? "Generating…" : filteredPool.length === 0 ? "No questions match" : `Generate Test (${count} Qs · ${durationMin} min)`}
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -275,4 +485,4 @@ function Section({ n, title, children, C }) {
       {children}
     </div>
   );
-    }
+        }
