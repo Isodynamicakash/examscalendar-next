@@ -14,7 +14,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import MathContent from "./MathContent";
-import { DARK } from "@/lib/questionTheme";
+import { DARK, LIGHT } from "@/lib/questionTheme";
 import { supabase } from "@/lib/supabase";
 
 function getCtx() { if (typeof window === "undefined") return null; try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
@@ -35,7 +35,12 @@ function playIncorrectSound() { const ctx = getCtx(); if (!ctx) return; const t 
 function formatTime(sec) { const m = Math.floor(sec / 60).toString().padStart(2, "0"); const s = Math.floor(sec % 60).toString().padStart(2, "0"); return `${m}:${s}`; }
 
 export default function QuestionSolver({ q, answer, examLabel, chapterName, chapterHref, basePath, filterQuery = "", slugList = [] }) {
-  const T = DARK;
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("ec_theme") : null;
+    if (saved !== null) setIsDark(saved === "dark");
+  }, []);
+  const T = isDark ? DARK : LIGHT;
   const router = useRouter();
 
   const [selected, setSelected] = useState(null);
@@ -249,6 +254,7 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
   const showSolveAgainBtn = checked;
 
   return (
+    <div style={{ background: T.bg, minHeight: "100vh", color: T.text }}>
     <div style={{ maxWidth: 720, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <div>
@@ -329,5 +335,6 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
 
       {chapterHref && <div style={{ textAlign: "center", marginTop: 20 }}><a href={chapterHref} style={{ fontSize: 13, color: T.textMuted }}>← Back to {chapterName} chapter list</a></div>}
     </div>
+    </div>
   );
-              }
+                                                 }
