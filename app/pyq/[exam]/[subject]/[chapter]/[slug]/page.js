@@ -7,7 +7,7 @@ import { DARK } from "@/lib/questionTheme";
 import MathJaxProvider from "@/components/MathJaxProvider";
 import QuestionCard from "@/components/QuestionCard";
 import QuestionSolver from "@/components/QuestionSolver";
-import BackButton from "@/components/BackButton";
+import QuestionPageShell from "@/components/QuestionPageShell";
 
 // SSC CGL keeps the simpler inline-reveal card for now (per instruction --
 // not doing the Marks-style test UI for this exam yet).
@@ -83,7 +83,13 @@ export default async function QuestionPage({ params, searchParams }) {
     }),
   };
 
+  // T = DARK is kept here only for the non-solver (SSC CGL) inline card
+  // below, which still passes a static theme object into QuestionCard.
+  // The outer page background/text color is now owned by
+  // QuestionPageShell (a client component) so it can switch with the
+  // ec_theme localStorage toggle.
   const T = DARK;
+
   // Carry the active filters (and view=list) back to the chapter list so
   // both the in-app back link and the browser back button land on the
   // same filtered view the user came from.
@@ -93,61 +99,54 @@ export default async function QuestionPage({ params, searchParams }) {
     : null;
 
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", color: T.text, fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
+    <QuestionPageShell
+      exam={exam}
+      examLabel={examLabel}
+      subjectData={subjectData}
+      chapterData={chapterData}
+      chapterHref={chapterHref}
+    >
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <div style={{ padding: "16px 20px 0" }}>
-        <BackButton C={T} fallbackHref={chapterHref || `/pyq/${exam}`} />
-      </div>
+      {!useSolver && (
+        <h1 style={{ fontSize: 20, fontWeight: 800, margin: "8px 0 20px" }}>
+          {examLabel} {question.year ? `${question.year} ` : ""}
+          {question.shift ? `(${question.shift}) ` : ""}
+          — {subjectData?.name || question.subject_name} PYQ
+        </h1>
+      )}
 
-      <nav style={{ padding: "12px 20px", fontSize: 13, color: T.textMuted, display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <Link href="/">Home</Link> ›
-        <Link href={`/pyq/${exam}`}>{examLabel}</Link> ›
-        {subjectData && <span style={{ color: T.textDim }}>{subjectData.name}</span>} ›
-        {chapterData && <Link href={chapterHref}>{chapterData.name}</Link>}
-      </nav>
-
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "0 20px 60px" }}>
-        {!useSolver && (
-          <h1 style={{ fontSize: 20, fontWeight: 800, margin: "8px 0 20px" }}>
-            {examLabel} {question.year ? `${question.year} ` : ""}
-            {question.shift ? `(${question.shift}) ` : ""}
-            — {subjectData?.name || question.subject_name} PYQ
-          </h1>
+      <MathJaxProvider>
+        {useSolver ? (
+          <QuestionSolver
+            // Same fix as the chapter-page topic bug: without a key tied
+            // to the actual question, Next.js can reuse a stale component
+            // instance across Next/Previous clicks -- URL updates
+            // correctly but the visible content doesn't, or shows a
+            // mismatched previous question's data.
+            key={`${exam}-${subject}-${chapter}-${slug}`}
+            q={question}
+            answer={answer}
+            examLabel={examLabel}
+            chapterName={chapterData?.name}
+            chapterHref={chapterHref}
+            basePath={`/pyq/${exam}/${subject}/${chapter}`}
+            filterQuery={filterQuery}
+            slugList={slugList}
+          />
+        ) : (
+          <>
+            <QuestionCard q={question} C={T} isMobile={false} initialAnswer={answer} />
+            {chapterHref && (
+              <div style={{ marginTop: 32, textAlign: "center" }}>
+                <Link href={chapterHref} style={{ display: "inline-block", padding: "10px 22px", borderRadius: 10, border: `1px solid ${T.accent}`, color: T.accentLight, fontWeight: 700, fontSize: 14 }}>
+                  ← More {chapterData?.name} questions
+                </Link>
+              </div>
+            )}
+          </>
         )}
-
-        <MathJaxProvider>
-          {useSolver ? (
-            <QuestionSolver
-              // Same fix as the chapter-page topic bug: without a key tied
-              // to the actual question, Next.js can reuse a stale component
-              // instance across Next/Previous clicks -- URL updates
-              // correctly but the visible content doesn't, or shows a
-              // mismatched previous question's data.
-              key={`${exam}-${subject}-${chapter}-${slug}`}
-              q={question}
-              answer={answer}
-              examLabel={examLabel}
-              chapterName={chapterData?.name}
-              chapterHref={chapterHref}
-              basePath={`/pyq/${exam}/${subject}/${chapter}`}
-              filterQuery={filterQuery}
-              slugList={slugList}
-            />
-          ) : (
-            <>
-              <QuestionCard q={question} C={T} isMobile={false} initialAnswer={answer} />
-              {chapterHref && (
-                <div style={{ marginTop: 32, textAlign: "center" }}>
-                  <Link href={chapterHref} style={{ display: "inline-block", padding: "10px 22px", borderRadius: 10, border: `1px solid ${T.accent}`, color: T.accentLight, fontWeight: 700, fontSize: 14 }}>
-                    ← More {chapterData?.name} questions
-                  </Link>
-                </div>
-              )}
-            </>
-          )}
-        </MathJaxProvider>
-      </main>
-    </div>
+      </MathJaxProvider>
+    </QuestionPageShell>
   );
-                                            }
+                                                                                           }
