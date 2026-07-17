@@ -39,6 +39,7 @@ export default function ChapterPageClient({
 
   if (view === "overview") {
     return (
+      <div style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
       <ChapterOverview
         examSlug={exam}
         examLabel={examLabel}
@@ -54,6 +55,7 @@ export default function ChapterPageClient({
         onViewMistakes={() => { router.push(`/pyq/${exam}/${subject}/${chapter}?view=list&source=incorrect`); router.refresh(); }}
         onViewTests={() => { router.push(`/tests?exam=${exam}&subject=${subject}&chapter=${chapter}`); }}
       />
+      </div>
     );
   }
 
