@@ -62,20 +62,25 @@ function TestReportPageInner() {
       const { data: qContent } = await supabase.from("v_questions_full")
         .select("id, question_text, option_1, option_2, option_3, option_4, question_type")
         .in("id", qIds);
-      const { data: ansRows } = await supabase.from("answers").select("question_id, correct_option, solution_text").in("question_id", qIds);
+      const { data: ansRows, error: ansErr } = await supabase.from("answers").select("question_id, correct_option, solution_text").in("question_id", qIds);
 
-      // Diagnostic: if we asked for N question ids and got back 0 answer
-      // rows, or every solution_text is empty, the "View Solutions"
-      // button will visually do nothing when clicked. Log it so it's
-      // obvious in the console instead of looking like a dead button.
-      if (qIds.length > 0) {
-        const missing = qIds.length - (ansRows?.length || 0);
-        const emptySolutions = (ansRows || []).filter((a) => !a.solution_text).length;
-        if (missing > 0 || emptySolutions > 0) {
-          // eslint-disable-next-line no-console
-          console.warn(`[report] answers coverage: ${ansRows?.length || 0}/${qIds.length} rows; ${emptySolutions} have empty solution_text.`);
-        }
-      }
+      // TEMP DIAGNOSTIC — remove once report bug is resolved.
+      // eslint-disable-next-line no-console
+      console.log("[report/diag] qIds:", qIds);
+      // eslint-disable-next-line no-console
+      console.log("[report/diag] qIds sample types:", qIds.slice(0, 3).map((x) => `${x} (${typeof x})`));
+      // eslint-disable-next-line no-console
+      console.log("[report/diag] ansRows:", ansRows);
+      // eslint-disable-next-line no-console
+      console.log("[report/diag] ansErr:", ansErr);
+      // eslint-disable-next-line no-console
+      console.log("[report/diag] first row full:", ansRows?.[0]);
+      // Try a bare read (no filter) to see if RLS lets us see the table at all.
+      const { data: bareRows, error: bareErr } = await supabase.from("answers").select("question_id, correct_option, solution_text").limit(3);
+      // eslint-disable-next-line no-console
+      console.log("[report/diag] bare (no filter) rows:", bareRows);
+      // eslint-disable-next-line no-console
+      console.log("[report/diag] bare err:", bareErr);
 
       const contentById = new Map((qContent || []).map((q) => [q.id, q]));
       const ansById = new Map((ansRows || []).map((a) => [a.question_id, a]));
@@ -271,4 +276,4 @@ function LegendRow({ color, label, value, C }) {
 }
 function Center({ children, C }) {
   return <div style={{ minHeight: "100vh", background: C.bg, color: C.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{children}</div>;
-              }
+          }
