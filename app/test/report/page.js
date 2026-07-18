@@ -64,6 +64,19 @@ function TestReportPageInner() {
         .in("id", qIds);
       const { data: ansRows } = await supabase.from("answers").select("question_id, correct_option, solution_text").in("question_id", qIds);
 
+      // Diagnostic: if we asked for N question ids and got back 0 answer
+      // rows, or every solution_text is empty, the "View Solutions"
+      // button will visually do nothing when clicked. Log it so it's
+      // obvious in the console instead of looking like a dead button.
+      if (qIds.length > 0) {
+        const missing = qIds.length - (ansRows?.length || 0);
+        const emptySolutions = (ansRows || []).filter((a) => !a.solution_text).length;
+        if (missing > 0 || emptySolutions > 0) {
+          // eslint-disable-next-line no-console
+          console.warn(`[report] answers coverage: ${ansRows?.length || 0}/${qIds.length} rows; ${emptySolutions} have empty solution_text.`);
+        }
+      }
+
       const contentById = new Map((qContent || []).map((q) => [q.id, q]));
       const ansById = new Map((ansRows || []).map((a) => [a.question_id, a]));
       const taById = new Map((tas || []).map((a) => [a.question_id, a]));
@@ -232,6 +245,11 @@ function TestReportPageInner() {
                     <MathContent text={r.solution_text} block style={{ color: C.text, fontSize: 14 }} />
                   </div>
                 )}
+                {showSolutions && !r.solution_text && (
+                  <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, background: C.surface, border: `1px dashed ${C.border}`, fontSize: 13, color: C.textMuted, fontStyle: "italic" }}>
+                    Solution not available for this question yet.
+                  </div>
+                )}
               </div>
             );
           })}
@@ -253,4 +271,4 @@ function LegendRow({ color, label, value, C }) {
 }
 function Center({ children, C }) {
   return <div style={{ minHeight: "100vh", background: C.bg, color: C.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{children}</div>;
-    }
+              }
