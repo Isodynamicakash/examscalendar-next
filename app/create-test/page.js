@@ -272,7 +272,7 @@ function CreateTestInner() {
       const { error: qErr } = await supabase.from("test_questions").insert(rows);
       if (qErr) throw qErr;
 
-      router.push(`/test/${test.id}`);
+      router.push(`/test?id=${test.id}`);
     } catch (e) {
       console.error("Generate failed:", e);
       setError("Something went wrong creating the test. Please try again.");
@@ -485,4 +485,4 @@ function Section({ n, title, children, C }) {
       {children}
     </div>
   );
-        }
+          }
