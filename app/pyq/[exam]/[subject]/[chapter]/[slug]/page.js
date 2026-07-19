@@ -64,9 +64,15 @@ export default async function QuestionPage({ params, searchParams }) {
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
     .join("&");
 
-  const slugList = useSolver
-    ? await getChapterQuestionSlugs({ examSlug: exam, subject, chapter, ...filters })
-    : [];
+  // Fetched for both branches now -- the solver uses it internally, and the
+  // non-solver (SSC CGL) card uses it to build the fixed Previous/Next bar.
+  const slugList = await getChapterQuestionSlugs({ examSlug: exam, subject, chapter, ...filters });
+
+  const currentIdx = slugList.indexOf(slug);
+  const buildQuestionHref = (s) =>
+    `/pyq/${exam}/${subject}/${chapter}/${s}${filterQuery ? `?${filterQuery}` : ""}`;
+  const prevHref = currentIdx > 0 ? buildQuestionHref(slugList[currentIdx - 1]) : null;
+  const nextHref = currentIdx >= 0 && currentIdx < slugList.length - 1 ? buildQuestionHref(slugList[currentIdx + 1]) : null;
 
   const options = [question.option_1, question.option_2, question.option_3, question.option_4].filter(Boolean);
   const jsonLd = {
@@ -136,9 +142,16 @@ export default async function QuestionPage({ params, searchParams }) {
           />
         ) : (
           <>
-            <QuestionCard q={question} C={T} isMobile={false} initialAnswer={answer} />
+            <QuestionCard
+              q={question}
+              C={T}
+              isMobile={false}
+              initialAnswer={answer}
+              prevHref={prevHref}
+              nextHref={nextHref}
+            />
             {chapterHref && (
-              <div style={{ marginTop: 32, textAlign: "center" }}>
+              <div style={{ marginTop: 16, textAlign: "center" }}>
                 <Link href={chapterHref} style={{ display: "inline-block", padding: "10px 22px", borderRadius: 10, border: `1px solid ${T.accent}`, color: T.accentLight, fontWeight: 700, fontSize: 14 }}>
                   ← More {chapterData?.name} questions
                 </Link>
@@ -149,4 +162,4 @@ export default async function QuestionPage({ params, searchParams }) {
       </MathJaxProvider>
     </QuestionPageShell>
   );
-                                                                                           }
+}
