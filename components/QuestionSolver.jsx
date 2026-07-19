@@ -34,6 +34,16 @@ function playIncorrectSound() { const ctx = getCtx(); if (!ctx) return; const t 
 
 function formatTime(sec) { const m = Math.floor(sec / 60).toString().padStart(2, "0"); const s = Math.floor(sec % 60).toString().padStart(2, "0"); return `${m}:${s}`; }
 
+// Standard bookmark-ribbon icon (outline / filled), matching the MARKS app's
+// save button. Swap this out easily if the brand wants a different glyph.
+function BookmarkIcon({ filled }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+      <path d="M6 3.5a1.5 1.5 0 0 0-1.5 1.5v15.2a.6.6 0 0 0 .93.5L12 16.4l6.57 4.3a.6.6 0 0 0 .93-.5V5a1.5 1.5 0 0 0-1.5-1.5H6z" />
+    </svg>
+  );
+}
+
 export default function QuestionSolver({ q, answer, examLabel, chapterName, chapterHref, basePath, filterQuery = "", slugList = [] }) {
   const [isDark, setIsDark] = useState(true);
   useEffect(() => {
@@ -231,12 +241,14 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
     if (isSelectedOpt(i)) return "bad";
     return "dim";
   };
+  // Solid lettered badges (circle for MCQ, rounded-square for MSQ), matching
+  // the MARKS app's quadrant option cards.
   const OPT = {
-    def: { bg: T.bgCard, border: T.border, color: T.text, letter: T.textMuted },
-    sel: { bg: T.blueBg, border: T.blue, color: T.blueText, letter: T.blue },
-    ok: { bg: T.greenBg, border: T.green, color: T.greenText, letter: T.green },
-    bad: { bg: T.redBg, border: T.red, color: T.redText, letter: T.red },
-    dim: { bg: T.bgCard, border: T.border, color: T.textDim, letter: T.textDim },
+    def: { bg: T.bgCard, border: T.border, color: T.text, badgeBg: T.surfaceHigh, badgeColor: T.textMuted },
+    sel: { bg: T.blueBg, border: T.blue, color: T.blueText, badgeBg: T.blue, badgeColor: "#fff" },
+    ok: { bg: T.greenBg, border: T.green, color: T.greenText, badgeBg: T.green, badgeColor: "#fff" },
+    bad: { bg: T.redBg, border: T.red, color: T.redText, badgeBg: T.red, badgeColor: "#fff" },
+    dim: { bg: T.bgCard, border: T.border, color: T.textDim, badgeBg: T.surfaceHigh, badgeColor: T.textDim },
   };
   const examDate = q.exam_date ? new Date(q.exam_date + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : null;
   const flashOverlayStyle = flash ? { boxShadow: `0 0 0 3px ${flash === "correct" ? T.green : T.red}`, transition: "box-shadow .15s" } : { transition: "box-shadow .3s" };
@@ -255,7 +267,9 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", color: T.text }}>
-    <div style={{ maxWidth: 720, margin: "0 auto" }}>
+    {/* Bottom padding reserves room for the fixed action bar so it never
+        covers the solution text, however far you scroll. */}
+    <div style={{ maxWidth: 720, margin: "0 auto", paddingBottom: 92 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 800, color: T.textMuted }}>
@@ -269,8 +283,15 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
           <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: T.accentLight, background: T.accentBg, border: `1px solid ${T.accent}44`, borderRadius: 20, padding: "4px 12px" }}>
             ⏱ {formatTime(seconds)}
           </span>
-          <button onClick={toggleBookmark} disabled={bmBusy || bookmarked === null} title={bmLabel} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${bookmarked ? "#f59e0b" : T.border}`, background: bmBg, color: bmColor, cursor: bmBusy ? "wait" : "pointer", fontSize: 14 }}>
-            🔖
+          {/* Standard bookmark/save icon button, matching the MARKS app */}
+          <button
+            onClick={toggleBookmark}
+            disabled={bmBusy || bookmarked === null}
+            aria-pressed={!!bookmarked}
+            title={bmLabel}
+            style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, border: `1px solid ${bookmarked ? "#f59e0b" : T.border}`, background: bmBg, color: bmColor, cursor: bmBusy ? "wait" : "pointer" }}
+          >
+            <BookmarkIcon filled={!!bookmarked} />
           </button>
         </div>
       </div>
@@ -280,13 +301,61 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
         {q.has_diagram && q.images?.length > 0 && !q.question_text?.includes("[IMAGE:") && q.images.filter((im) => im.position !== "solution").map((im, i) => (<img key={i} src={im.url} alt="question diagram" style={{ maxWidth: "100%", borderRadius: 8, margin: "10px 0" }} />))}
 
         {!isNumerical && opts.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-            {opts.map((opt, i) => { const st = OPT[optState(i)]; return (
-              <button key={i} onClick={() => (isMSQ ? toggleMulti(i) : !checked && setSelected(i))} disabled={checked} style={{ display: "flex", alignItems: "flex-start", gap: 12, textAlign: "left", padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${st.border}`, background: st.bg, color: st.color, cursor: checked ? "default" : "pointer", fontSize: 15 }}>
-                <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: isMSQ ? 5 : "50%", border: `2px solid ${st.letter}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: st.letter, background: isSelectedOpt(i) ? st.letter + "22" : "transparent" }}>{isSelectedOpt(i) ? "✓" : String.fromCharCode(65 + i)}</span>
-                <MathContent text={opt} />
-              </button>
-            ); })}
+          // Four-quadrant option grid, MARKS-style. auto-fit collapses to a
+          // single column on narrow (mobile) widths automatically.
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10, marginTop: 10 }}>
+            {opts.map((opt, i) => {
+              const st = OPT[optState(i)];
+              const showYouMarked = checked && isSelectedOpt(i) && (!isCorrectOpt(i) || !revealed) && !(revealed && isCorrectOpt(i));
+              const showCorrectTag = revealed && isCorrectOpt(i);
+              return (
+                <button
+                  key={i}
+                  onClick={() => (isMSQ ? toggleMulti(i) : !checked && setSelected(i))}
+                  disabled={checked}
+                  style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 12, textAlign: "left", padding: "12px 16px", borderRadius: 12, border: `1.5px solid ${st.border}`, background: st.bg, color: st.color, cursor: checked ? "default" : "pointer", fontSize: 15, minHeight: 58 }}
+                >
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      width: 24,
+                      height: 24,
+                      borderRadius: isMSQ ? 6 : "50%",
+                      background: st.badgeBg,
+                      color: st.badgeColor,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {isSelectedOpt(i) && !revealed ? "✓" : String.fromCharCode(65 + i)}
+                  </span>
+                  <span style={{ marginTop: 2, flex: 1 }}>
+                    <MathContent text={opt} />
+                  </span>
+                  {(showYouMarked || showCorrectTag) && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -9,
+                        right: 10,
+                        fontSize: 9.5,
+                        fontWeight: 800,
+                        padding: "2px 7px",
+                        borderRadius: 20,
+                        background: showCorrectTag ? T.green : T.red,
+                        color: "#fff",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {showCorrectTag ? "Correct" : "You marked"}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -302,24 +371,6 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-          {showCheckBtn && (
-            <button onClick={checkAnswer} disabled={!hasAnswer} style={{ flex: 1, minWidth: 140, padding: "13px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: "none", cursor: hasAnswer ? "pointer" : "not-allowed", background: hasAnswer ? T.accent : T.surfaceHigh, color: hasAnswer ? "#fff" : T.textDim }}>
-              Check Answer
-            </button>
-          )}
-          {showShowAnswerBtn && (
-            <button onClick={showAnswerNow} style={{ flex: 1, minWidth: 140, padding: "13px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${T.purple}`, cursor: "pointer", background: "transparent", color: T.purple }}>
-              Show Answer
-            </button>
-          )}
-          {showSolveAgainBtn && (
-            <button onClick={solveAgain} style={{ flex: 1, minWidth: 140, padding: "13px", borderRadius: 10, fontSize: 14, fontWeight: 700, border: `1px solid ${T.border}`, cursor: "pointer", background: "transparent", color: T.textMuted }}>
-              ↺ Solve Again
-            </button>
-          )}
-        </div>
-
         {revealed && answer?.solution_text && (
           <div style={{ marginTop: 18, padding: "16px 18px", background: T.surface, borderRadius: 10, border: `1px solid ${T.border}` }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: T.textMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Solution</div>
@@ -328,13 +379,61 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
         )}
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-        <button onClick={() => goTo(prevSlug)} disabled={!prevSlug} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${T.border}`, background: "transparent", color: prevSlug ? T.text : T.textDim, fontWeight: 700, fontSize: 14, cursor: prevSlug ? "pointer" : "not-allowed" }}>← Previous</button>
-        <button onClick={() => goTo(nextSlug)} disabled={!nextSlug} style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${T.accent}`, background: nextSlug ? T.accentBg : "transparent", color: nextSlug ? T.accentLight : T.textDim, fontWeight: 700, fontSize: 14, cursor: nextSlug ? "pointer" : "not-allowed" }}>Next →</button>
-      </div>
-
       {chapterHref && <div style={{ textAlign: "center", marginTop: 20 }}><a href={chapterHref} style={{ fontSize: 13, color: T.textMuted }}>← Back to {chapterName} chapter list</a></div>}
+    </div>
+
+    {/* Fixed bottom action bar -- Previous / primary action(s) / Next.
+        Stays pinned to the viewport regardless of scroll position, so the
+        controls never disappear behind the solution text, MARKS-style. */}
+    <div
+      style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 40,
+        background: T.bgCard,
+        borderTop: `1px solid ${T.border}`,
+        boxShadow: "0 -4px 16px rgba(0,0,0,0.18)",
+        padding: "10px 16px",
+      }}
+    >
+      <div style={{ display: "flex", gap: 10, maxWidth: 720, margin: "0 auto", alignItems: "center" }}>
+        <button
+          onClick={() => goTo(prevSlug)}
+          disabled={!prevSlug}
+          style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${T.border}`, background: "transparent", color: prevSlug ? T.text : T.textDim, fontWeight: 700, fontSize: 13.5, cursor: prevSlug ? "pointer" : "not-allowed", opacity: prevSlug ? 1 : 0.5 }}
+        >
+          ← Previous
+        </button>
+
+        <div style={{ display: "flex", gap: 8, flex: 1.6 }}>
+          {showCheckBtn && (
+            <button onClick={checkAnswer} disabled={!hasAnswer} style={{ flex: 1, padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 800, border: "none", cursor: hasAnswer ? "pointer" : "not-allowed", background: hasAnswer ? T.accent : T.surfaceHigh, color: hasAnswer ? "#fff" : T.textDim }}>
+              Check Answer
+            </button>
+          )}
+          {showShowAnswerBtn && (
+            <button onClick={showAnswerNow} style={{ flex: 1, padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 800, border: `1px solid ${T.purple}`, cursor: "pointer", background: "transparent", color: T.purple }}>
+              Show Answer
+            </button>
+          )}
+          {showSolveAgainBtn && (
+            <button onClick={solveAgain} style={{ flex: 1, padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 800, border: `1px solid ${T.accent}`, cursor: "pointer", background: T.accentBg, color: T.accentLight }}>
+              ↺ Solve Again
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => goTo(nextSlug)}
+          disabled={!nextSlug}
+          style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${T.accent}`, background: nextSlug ? T.accent : "transparent", color: nextSlug ? "#fff" : T.textDim, fontWeight: 700, fontSize: 13.5, cursor: nextSlug ? "pointer" : "not-allowed", opacity: nextSlug ? 1 : 0.5 }}
+        >
+          Next →
+        </button>
+      </div>
     </div>
     </div>
   );
-                                                 }
+}
