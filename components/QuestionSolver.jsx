@@ -259,18 +259,21 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
 
   // Buttons visible per phase:
   //   before check: Check Answer (enabled iff hasAnswer)
-  //   checked + revealed: Solve Again
-  //   checked + not revealed (wrong 1st): Show Answer, Solve Again
+  //   checked: Solve Again (Show Answer is a separate top link, see below)
   const showCheckBtn = !checked;
   const showShowAnswerBtn = checked && !revealed;
   const showSolveAgainBtn = checked;
+
+  // Subtle white "lit up" glow applied to nav/action buttons in dark mode,
+  // so they read clearly against the dark card instead of blending in.
+  const glow = isDark ? { boxShadow: "0 0 0 1px rgba(255,255,255,0.14), 0 0 14px rgba(255,255,255,0.22)" } : {};
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", color: T.text }}>
     {/* Bottom padding reserves room for the fixed action bar so it never
         covers the solution text, however far you scroll. */}
-    <div style={{ maxWidth: 720, margin: "0 auto", paddingBottom: 92 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+    <div style={{ maxWidth: 800, margin: "0 auto", paddingBottom: 92 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 800, color: T.textMuted }}>
             Q{currentIndex >= 0 ? currentIndex + 1 : ""} {isMSQ && <span style={{ color: T.purple }}>&middot; MSQ</span>} {isNumerical && <span style={{ color: T.orange }}>&middot; Numerical</span>} {attemptNum > 1 && <span style={{ color: T.textDim, fontWeight: 600 }}>&middot; Attempt {attemptNum}</span>}
@@ -289,52 +292,68 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
             disabled={bmBusy || bookmarked === null}
             aria-pressed={!!bookmarked}
             title={bmLabel}
-            style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, border: `1px solid ${bookmarked ? "#f59e0b" : T.border}`, background: bmBg, color: bmColor, cursor: bmBusy ? "wait" : "pointer" }}
+            style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, border: `1px solid ${bookmarked ? "#f59e0b" : T.border}`, background: bmBg, color: bmColor, cursor: bmBusy ? "wait" : "pointer", ...glow }}
           >
             <BookmarkIcon filled={!!bookmarked} />
           </button>
         </div>
       </div>
 
-      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: "20px 22px", ...flashOverlayStyle }}>
-        <MathContent text={q.question_text} block style={{ color: T.text, fontSize: 16, marginBottom: 16 }} />
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: "28px 30px", ...flashOverlayStyle }}>
+        <MathContent text={q.question_text} block style={{ color: T.text, fontSize: 17, marginBottom: 18 }} />
         {q.has_diagram && q.images?.length > 0 && !q.question_text?.includes("[IMAGE:") && q.images.filter((im) => im.position !== "solution").map((im, i) => (<img key={i} src={im.url} alt="question diagram" style={{ maxWidth: "100%", borderRadius: 8, margin: "10px 0" }} />))}
 
         {!isNumerical && opts.length > 0 && (
-          // Four-quadrant option grid, MARKS-style. auto-fit collapses to a
-          // single column on narrow (mobile) widths automatically.
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10, marginTop: 10 }}>
-            {opts.map((opt, i) => {
-              const st = OPT[optState(i)];
-              const showYouMarked = checked && isSelectedOpt(i) && (!isCorrectOpt(i) || !revealed) && !(revealed && isCorrectOpt(i));
-              const showCorrectTag = revealed && isCorrectOpt(i);
-              return (
+          <>
+            {/* Top-right "Show Answer" link, sitting above the option grid
+                (over the right column, i.e. above the 2nd/4th options) --
+                separate from the fixed bottom bar so it never doubles up
+                with Solve Again. */}
+            {showShowAnswerBtn && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
                 <button
-                  key={i}
-                  onClick={() => (isMSQ ? toggleMulti(i) : !checked && setSelected(i))}
-                  disabled={checked}
-                  style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 12, textAlign: "left", padding: "12px 16px", borderRadius: 12, border: `1.5px solid ${st.border}`, background: st.bg, color: st.color, cursor: checked ? "default" : "pointer", fontSize: 15, minHeight: 58 }}
+                  onClick={showAnswerNow}
+                  style={{ background: "transparent", border: "none", color: T.purple, fontWeight: 800, fontSize: 13, cursor: "pointer", padding: "4px 2px", textDecoration: "underline", textUnderlineOffset: 3 }}
                 >
-                  <span
-                    style={{
-                      flexShrink: 0,
-                      width: 24,
-                      height: 24,
-                      borderRadius: isMSQ ? 6 : "50%",
-                      background: st.badgeBg,
-                      color: st.badgeColor,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 800,
-                    }}
+                  Show Answer
+                </button>
+              </div>
+            )}
+
+            {/* Four-quadrant option grid, MARKS-style. auto-fit collapses to a
+                single column on narrow (mobile) widths automatically. */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12, marginTop: 6 }}>
+              {opts.map((opt, i) => {
+                const st = OPT[optState(i)];
+                const showYouMarked = checked && isSelectedOpt(i) && (!isCorrectOpt(i) || !revealed) && !(revealed && isCorrectOpt(i));
+                const showCorrectTag = revealed && isCorrectOpt(i);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => (isMSQ ? toggleMulti(i) : !checked && setSelected(i))}
+                    disabled={checked}
+                    style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 13, textAlign: "left", padding: "15px 18px", borderRadius: 13, border: `1.5px solid ${st.border}`, background: st.bg, color: st.color, cursor: checked ? "default" : "pointer", fontSize: 16, minHeight: 64 }}
                   >
-                    {isSelectedOpt(i) && !revealed ? "✓" : String.fromCharCode(65 + i)}
-                  </span>
-                  <span style={{ marginTop: 2, flex: 1 }}>
-                    <MathContent text={opt} />
-                  </span>
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: 27,
+                        height: 27,
+                        borderRadius: isMSQ ? 7 : "50%",
+                        background: st.badgeBg,
+                        color: st.badgeColor,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 13,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {isSelectedOpt(i) && !revealed ? "✓" : String.fromCharCode(65 + i)}
+                    </span>
+                    <span style={{ marginTop: 2, flex: 1 }}>
+                      <MathContent text={opt} />
+                    </span>
                   {(showYouMarked || showCorrectTag) && (
                     <span
                       style={{
@@ -356,7 +375,8 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
                 </button>
               );
             })}
-          </div>
+            </div>
+          </>
         )}
 
         {isNumerical && (
@@ -378,13 +398,14 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
           </div>
         )}
       </div>
-
-      {chapterHref && <div style={{ textAlign: "center", marginTop: 20 }}><a href={chapterHref} style={{ fontSize: 13, color: T.textMuted }}>← Back to {chapterName} chapter list</a></div>}
     </div>
 
-    {/* Fixed bottom action bar -- Previous / primary action(s) / Next.
+    {/* Fixed bottom action bar -- Previous / primary action / Next.
         Stays pinned to the viewport regardless of scroll position, so the
-        controls never disappear behind the solution text, MARKS-style. */}
+        controls never disappear behind the solution text, MARKS-style.
+        Only one primary action shows at a time now: "Show Answer" lives
+        as a link above the options instead of doubling up with Solve
+        Again down here. */}
     <div
       style={{
         position: "fixed",
@@ -398,37 +419,30 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
         padding: "10px 16px",
       }}
     >
-      <div style={{ display: "flex", gap: 10, maxWidth: 720, margin: "0 auto", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, maxWidth: 800, margin: "0 auto", alignItems: "center" }}>
         <button
           onClick={() => goTo(prevSlug)}
           disabled={!prevSlug}
-          style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${T.border}`, background: "transparent", color: prevSlug ? T.text : T.textDim, fontWeight: 700, fontSize: 13.5, cursor: prevSlug ? "pointer" : "not-allowed", opacity: prevSlug ? 1 : 0.5 }}
+          style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${T.border}`, background: "transparent", color: prevSlug ? T.text : T.textDim, fontWeight: 700, fontSize: 13.5, cursor: prevSlug ? "pointer" : "not-allowed", opacity: prevSlug ? 1 : 0.5, ...(prevSlug ? glow : {}) }}
         >
           ← Previous
         </button>
 
-        <div style={{ display: "flex", gap: 8, flex: 1.6 }}>
-          {showCheckBtn && (
-            <button onClick={checkAnswer} disabled={!hasAnswer} style={{ flex: 1, padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 800, border: "none", cursor: hasAnswer ? "pointer" : "not-allowed", background: hasAnswer ? T.accent : T.surfaceHigh, color: hasAnswer ? "#fff" : T.textDim }}>
-              Check Answer
-            </button>
-          )}
-          {showShowAnswerBtn && (
-            <button onClick={showAnswerNow} style={{ flex: 1, padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 800, border: `1px solid ${T.purple}`, cursor: "pointer", background: "transparent", color: T.purple }}>
-              Show Answer
-            </button>
-          )}
-          {showSolveAgainBtn && (
-            <button onClick={solveAgain} style={{ flex: 1, padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 800, border: `1px solid ${T.accent}`, cursor: "pointer", background: T.accentBg, color: T.accentLight }}>
-              ↺ Solve Again
-            </button>
-          )}
-        </div>
+        {showCheckBtn && (
+          <button onClick={checkAnswer} disabled={!hasAnswer} style={{ flex: 1.3, padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 800, border: "none", cursor: hasAnswer ? "pointer" : "not-allowed", background: hasAnswer ? T.accent : T.surfaceHigh, color: hasAnswer ? "#fff" : T.textDim, ...(hasAnswer ? glow : {}) }}>
+            Check Answer
+          </button>
+        )}
+        {showSolveAgainBtn && (
+          <button onClick={solveAgain} style={{ flex: 1.3, padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 800, border: `1px solid ${T.accent}`, cursor: "pointer", background: T.accentBg, color: T.accentLight, ...glow }}>
+            ↺ Solve Again
+          </button>
+        )}
 
         <button
           onClick={() => goTo(nextSlug)}
           disabled={!nextSlug}
-          style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${T.accent}`, background: nextSlug ? T.accent : "transparent", color: nextSlug ? "#fff" : T.textDim, fontWeight: 700, fontSize: 13.5, cursor: nextSlug ? "pointer" : "not-allowed", opacity: nextSlug ? 1 : 0.5 }}
+          style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1px solid ${T.accent}`, background: nextSlug ? T.accent : "transparent", color: nextSlug ? "#fff" : T.textDim, fontWeight: 700, fontSize: 13.5, cursor: nextSlug ? "pointer" : "not-allowed", opacity: nextSlug ? 1 : 0.5, ...(nextSlug ? glow : {}) }}
         >
           Next →
         </button>
@@ -436,4 +450,4 @@ export default function QuestionSolver({ q, answer, examLabel, chapterName, chap
     </div>
     </div>
   );
-}
+      }
