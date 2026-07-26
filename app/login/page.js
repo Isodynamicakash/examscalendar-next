@@ -1,17 +1,17 @@
 "use client";
+
 /**
- * Login page -- Google OAuth only (email/password removed).
- *
- * Post-login landing (option A): return the user to wherever they were
- * when they clicked "Sign in". We capture that origin via a ?next=
- * query param (set by the sign-in entry points) and pass it through the
- * OAuth redirect so the callback can send them back there. Falls back
- * to Home if no origin was recorded.
+ * Login page -- Handles both Web and Native Android/iOS via Capacitor.
+ * - On Native: Uses @capgo/capacitor-social-login for seamless, browser-less sign-in.
+ * - On Web: Uses standard Supabase OAuth redirect flow.
  */
+
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { DARK } from "@/lib/questionTheme";
+import { Capacitor } from "@capacitor/core";
+import { SocialLogin } from "@capgo/capacitor-social-login";
 
 function GoogleIcon() {
   return (
@@ -28,7 +28,7 @@ function LoginInner() {
   const T = DARK;
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [alreadyIn, setAlreadyIn] = useState(false);
 
   // Where to send the user after login. The sign-in buttons pass ?next=
@@ -39,28 +39,71 @@ function LoginInner() {
     supabase.auth.getSession().then(({ data }) => {
       if (data?.session?.user) setAlreadyIn(true);
     });
+
+    // Initialize native plugin safely if running inside Capacitor Android/iOS app
+    if (Capacitor.isNativePlatform()) {
+      SocialLogin.initialize({
+        google: {
+          webClientId: process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
+        },
+      }).catch((err) => console.error("SocialLogin init error:", err));
+    }
   }, []);
 
+  const goNext = () => {
+    if (typeof window !== "undefined") window.location.assign(next);
+  };
+
   const signInWithGoogle = async () => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
+
     try {
-      // Remember the intended destination for the callback route.
-      if (typeof window !== "undefined") sessionStorage.setItem("post_login_next", next);
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
-      if (error) throw error;
-      // Browser redirects to Google now; nothing else to do here.
-    } catch (e) {
+      // 1. NATIVE MOBILE APP FLOW (Android / iOS)
+      if (Capacitor.isNativePlatform()) {
+        const result = await SocialLogin.login({
+          provider: "google",
+          options: { scopes: ["email", "profile"] },
+        });
+
+        const googleResult = result.result;
+
+        if (googleResult?.responseType === "online" && googleResult.idToken) {
+          const { error: supabaseError } = await supabase.auth.signInWithIdToken({
+            provider: "google",
+            token: googleResult.idToken,
+          });
+
+          if (supabaseError) throw supabaseError;
+
+          // Native login succeeded! Navigate to target route
+          goNext();
+          return;
+        } else {
+          throw new Error("Failed to get ID token from Google.");
+        }
+      } 
+      
+      // 2. STANDARD WEB BROWSER FLOW
+      else {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("post_login_next", next);
+        }
+        const redirectTo = `${window.location.origin}/auth/callback`;
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo },
+        });
+
+        if (error) throw error;
+        // Browser redirects to Google now; nothing else to do here.
+      }
+    } catch (e: any) {
       console.error("Google sign-in failed:", e);
-      setError("Couldn't start Google sign-in. Please try again.");
+      setError(e?.message || "Couldn't start Google sign-in. Please try again.");
       setLoading(false);
     }
   };
-
-  const goNext = () => { if (typeof window !== "undefined") window.location.assign(next); };
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
@@ -102,4 +145,4 @@ export default function LoginPage() {
       <LoginInner />
     </Suspense>
   );
-               }
+}
