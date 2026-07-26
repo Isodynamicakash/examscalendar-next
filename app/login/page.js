@@ -28,11 +28,10 @@ function LoginInner() {
   const T = DARK;
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [alreadyIn, setAlreadyIn] = useState(false);
 
-  // Where to send the user after login. The sign-in buttons pass ?next=
-  // (a path). We stash it so the callback page can read it.
+  // Where to send the user after login.
   const next = searchParams.get("next") || "/";
 
   useEffect(() => {
@@ -44,7 +43,7 @@ function LoginInner() {
     if (Capacitor.isNativePlatform()) {
       SocialLogin.initialize({
         google: {
-          webClientId: process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID|| "",
+          webClientId: process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || "",
         },
       }).catch((err) => console.error("SocialLogin init error:", err));
     }
@@ -98,7 +97,7 @@ function LoginInner() {
         if (error) throw error;
         // Browser redirects to Google now; nothing else to do here.
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error("Google sign-in failed:", e);
       setError(e?.message || "Couldn't start Google sign-in. Please try again.");
       setLoading(false);
@@ -145,4 +144,4 @@ export default function LoginPage() {
       <LoginInner />
     </Suspense>
   );
-}
+    }
