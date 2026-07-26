@@ -44,7 +44,7 @@ function LoginInner() {
     if (Capacitor.isNativePlatform()) {
       SocialLogin.initialize({
         google: {
-          webClientId: process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
+          webClientId: process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID|| "",
         },
       }).catch((err) => console.error("SocialLogin init error:", err));
     }
