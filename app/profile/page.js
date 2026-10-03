@@ -129,6 +129,18 @@ function ProfileInner() {
         </div>
       </div>
 
+      {/* [referral] Invite friends entry point */}
+      <button
+        onClick={() => router.push("/refer")}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 20px", background: C.bgCard, border: `1px solid ${C.amber}`, borderRadius: 14, marginBottom: 20, cursor: "pointer", textAlign: "left" }}
+      >
+        <span>
+          <span style={{ display: "block", fontSize: 15, fontWeight: 800, color: C.text }}>Invite friends, earn coins</span>
+          <span style={{ display: "block", fontSize: 13, color: C.textMuted, marginTop: 2 }}>20 coins for every friend who signs up. 100 coins unlock 1 month of Premium.</span>
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.amber, whiteSpace: "nowrap" }}>Invite</span>
+      </button>
+
       {/* Editable fields */}
       <div style={{ padding: "20px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, marginBottom: 20 }}>
         <div style={{ marginBottom: 16 }}>
