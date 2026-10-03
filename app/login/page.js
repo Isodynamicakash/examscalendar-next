@@ -10,6 +10,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { DARK } from "@/lib/questionTheme";
+import { claimPendingReferral } from "@/lib/referral"; // [referral]
 import { Capacitor } from "@capacitor/core";
 import { SocialLogin } from "@capgo/capacitor-social-login";
 
@@ -76,6 +77,7 @@ function LoginInner() {
           if (supabaseError) throw supabaseError;
 
           // Native login succeeded! Navigate to target route
+          await claimPendingReferral(); // [referral] native login skips /auth/callback
           goNext();
           return;
         } else {
