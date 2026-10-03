@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { DARK } from "@/lib/questionTheme";
+import { claimPendingReferral } from "@/lib/referral"; // [referral]
 
 export default function AuthCallbackPage() {
   const T = DARK;
@@ -32,6 +33,7 @@ export default function AuthCallbackPage() {
         const { data } = await supabase.auth.getSession();
         if (data?.session?.user) {
           if (typeof window !== "undefined") sessionStorage.removeItem("post_login_next");
+          await claimPendingReferral(); // [referral] credits the friend who shared the link
           finish(dest);
           return;
         }
