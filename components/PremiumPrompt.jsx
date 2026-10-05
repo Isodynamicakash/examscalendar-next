@@ -1,8 +1,8 @@
 "use client";
 /**
  * PremiumPrompt -- shown when a free user taps a Premium feature.
- * Points them to /refer (invite friends -> coins -> Premium) since
- * payments aren't live yet.
+ * Offers both ways to get Premium: buy it (/premium) or invite
+ * friends for coins (/refer).
  *
  *   const [prompt, setPrompt] = useState(null);
  *   ...
@@ -31,14 +31,20 @@ export default function PremiumPrompt({ C, message, onClose }) {
         <h2 style={{ fontSize: 17, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Premium feature</h2>
         <p style={{ fontSize: 14, color: C.textMuted, margin: "0 0 6px", lineHeight: 1.5 }}>{message}</p>
         <p style={{ fontSize: 13, color: C.textMuted, margin: "0 0 18px", lineHeight: 1.5 }}>
-          Invite 5 friends to get 1 month of Premium free.
+          Get Premium from ₹99, or invite 5 friends to get 1 month free.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <button
-            onClick={() => { onClose?.(); router.push("/refer"); }}
+            onClick={() => { onClose?.(); router.push("/premium"); }}
             style={{ padding: "11px 18px", borderRadius: 10, background: C.amber, color: "#1a1a1a", border: "none", fontWeight: 800, fontSize: 14, cursor: "pointer" }}
           >
-            Invite friends
+            See Premium plans
+          </button>
+          <button
+            onClick={() => { onClose?.(); router.push("/refer"); }}
+            style={{ padding: "10px 18px", borderRadius: 10, background: C.surface, color: C.text, border: `1px solid ${C.border}`, fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+          >
+            Invite friends instead
           </button>
           <button
             onClick={onClose}
