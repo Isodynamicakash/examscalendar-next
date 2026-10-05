@@ -26,6 +26,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { usePlan, testsLeftToday, planErrorMessage } from "@/lib/plan"; // [premium]
+import PremiumPrompt from "@/components/PremiumPrompt"; // [premium]
 
 const EXAM_SLUG_TO_ID = { "jee-main": 1, "jee-advanced": 2, neet: 3, "ssc-cgl": 6 };
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -38,8 +40,8 @@ function marksFor(examSlug, q) {
 
 const SOURCES = [
   { key: "all", label: "All Qs", icon: "📋", color: "accent" },
-  { key: "incorrect", label: "Incorrect Qs", icon: "❌", color: "red" },
-  { key: "unattempted", label: "Unattempted Qs", icon: "⭕", color: "amber" },
+  { key: "incorrect", label: "Incorrect Qs", icon: "❌", color: "red", premium: true },
+  { key: "unattempted", label: "Unattempted Qs", icon: "⭕", color: "amber", premium: true },
   { key: "bookmarked", label: "Bookmarked Qs", icon: "🔖", color: "purple" },
 ];
 
@@ -64,11 +66,14 @@ export default function TestCreateModal({
   const [durationEdited, setDurationEdited] = useState(false);
   const [popup, setPopup] = useState(null);       // empty-state message
   const [generating, setGenerating] = useState(false);
+  const { plan, locked, refresh: refreshPlan } = usePlan(); // [premium]
+  const [premiumPrompt, setPremiumPrompt] = useState(null); // [premium]
 
   // Load everything when opened.
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    refreshPlan(); // [premium] fresh "tests left today" each time the modal opens
     (async () => {
       const { data: sess } = await supabase.auth.getSession();
       const u = sess?.session?.user || null;
@@ -142,11 +147,16 @@ export default function TestCreateModal({
     incorrect: scopeQuestions.filter((q) => incorrectIds.has(q.id)).length,
   }), [scopeQuestions, bookmarkIds, attemptedIds, incorrectIds]);
 
+  // [premium] free plan caps the test length
+  const freeMax = locked ? plan.max_questions_per_test : null;
+  const maxCount = freeMax ? Math.min(pool.length, freeMax) : pool.length;
+  const testsLeft = testsLeftToday(plan);
+
   // Keep count within pool size; auto-set duration unless user edited it.
   useEffect(() => {
-    const max = pool.length;
+    const max = maxCount; // [premium]
     setCount((c) => Math.min(Math.max(1, c), Math.max(1, max)));
-  }, [pool.length]);
+  }, [maxCount]);
   useEffect(() => {
     if (!durationEdited) setDurationMin(Math.max(1, count * 2));
   }, [count, durationEdited]);
@@ -157,6 +167,11 @@ export default function TestCreateModal({
     // Empty-state guard.
     if (key !== "all" && !user) {
       setPopup("Sign in to use this filter and track your progress.");
+      return;
+    }
+    // [premium] incorrect / unattempted sources are Premium
+    if (locked && SOURCES.find((s) => s.key === key)?.premium) {
+      setPremiumPrompt("Tests from your incorrect and unattempted questions are a Premium feature.");
       return;
     }
     const c = counts[key] ?? 0;
@@ -172,6 +187,10 @@ export default function TestCreateModal({
   const generate = async () => {
     if (!user) { router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`); return; }
     if (pool.length === 0) { setPopup("No questions available for this selection."); return; }
+    if (testsLeft === 0) { // [premium]
+      setPremiumPrompt(`You've used your ${plan.tests_per_day} free tests for today. Premium gives you unlimited tests.`);
+      return;
+    }
     setGenerating(true);
     try {
       // Shuffle the pool and take `count`.
@@ -203,7 +222,9 @@ export default function TestCreateModal({
       router.push(`/test?id=${test.id}`);
     } catch (e) {
       console.error("Test generation failed:", e);
-      setPopup("Something went wrong creating the test. Please try again.");
+      const limitMsg = planErrorMessage(e, plan); // [premium] limit hit in the database
+      if (limitMsg) { setPremiumPrompt(limitMsg); refreshPlan(); }
+      else setPopup("Something went wrong creating the test. Please try again.");
       setGenerating(false);
     }
   };
@@ -235,7 +256,7 @@ export default function TestCreateModal({
                       <span style={{ fontSize: 18 }}>{s.icon}</span>
                       <span style={{ fontSize: 12, fontWeight: 800, color: on ? C.accentLight : C.textMuted }}>{c} Qs</span>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: on ? C.accentLight : C.text, marginTop: 6 }}>{s.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: on ? C.accentLight : C.text, marginTop: 6 }}>{locked && s.premium ? "🔒 " : ""}{s.label}</div>
                   </button>
                 );
               })}
@@ -244,13 +265,14 @@ export default function TestCreateModal({
             {/* Count */}
             <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 6 }}>Number of Questions</div>
             <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 8 }}>Available: {pool.length} Qs</div>
+            {freeMax && <div style={{ fontSize: 12, color: C.amberText, marginBottom: 8 }}>Free plan: up to {freeMax} questions per test</div>}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-              {[5, 10, 15, 20, 25, 30].filter((n) => n <= pool.length).map((n) => (
+              {[5, 10, 15, 20, 25, 30].filter((n) => n <= maxCount).map((n) => (
                 <button key={n} onClick={() => setCount(n)} style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: `1.5px solid ${count === n ? C.accent : C.border}`, background: count === n ? C.accentBg : C.surface, color: count === n ? C.accentLight : C.textMuted, cursor: "pointer" }}>{n} Qs</button>
               ))}
             </div>
-            <input type="number" min={1} max={pool.length} value={count}
-              onChange={(e) => setCount(Math.min(pool.length, Math.max(1, parseInt(e.target.value || "1", 10))))}
+            <input type="number" min={1} max={maxCount} value={count}
+              onChange={(e) => setCount(Math.min(maxCount, Math.max(1, parseInt(e.target.value || "1", 10))))}
               style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, background: C.surface, color: C.text, fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 18 }} />
 
             {/* Duration */}
@@ -262,12 +284,19 @@ export default function TestCreateModal({
               <button onClick={() => { setDurationEdited(true); setDurationMin((d) => d + 5); }} style={{ padding: "8px 16px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontWeight: 800, cursor: "pointer" }}>+ 5m</button>
             </div>
 
+            {testsLeft !== null && plan?.signedIn && (
+              <div style={{ fontSize: 12, fontWeight: 700, color: testsLeft === 0 ? C.redText : C.textMuted, textAlign: "center", marginBottom: 10 }}>
+                {testsLeft === 0 ? "No free tests left today" : `${testsLeft} of ${plan.tests_per_day} free tests left today`}
+              </div>
+            )}
             <button onClick={generate} disabled={generating || pool.length === 0} style={{ width: "100%", padding: "14px", borderRadius: 11, background: generating ? C.surfaceHigh : C.accent, color: generating ? C.textDim : "#fff", border: "none", fontWeight: 800, fontSize: 15, cursor: generating ? "wait" : "pointer" }}>
               {generating ? "Generating…" : `Generate Test (${count} Qs · ${durationMin} min)`}
             </button>
           </>
         )}
       </div>
+
+      <PremiumPrompt C={C} message={premiumPrompt} onClose={() => setPremiumPrompt(null)} />
 
       {/* Empty-state / info popup */}
       {popup && (
