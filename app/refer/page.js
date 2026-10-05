@@ -148,6 +148,13 @@ function ReferInner() {
             : `${coinsLeft} more coins to unlock Premium`}
         </button>
         {redeemMsg && <p style={{ fontSize: 13, color: C.text, margin: "8px 0 0" }}>{redeemMsg}</p>}
+        {/* [payments] */}
+        <p style={{ fontSize: 13, color: C.textMuted, margin: "10px 0 0" }}>
+          {"Don't want to wait? "}
+          <button onClick={() => router.push("/premium")} style={{ background: "none", border: "none", padding: 0, color: C.accentLight, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            See Premium plans
+          </button>
+        </p>
       </div>
 
       {/* Link and sharing */}
