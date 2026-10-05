@@ -23,6 +23,8 @@ const Icon = {
   profile: (c) => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>),
   analysis: (c) => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>),
   test: (c) => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6a1 1 0 0 1 1 1v1h1a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a1 1 0 0 1 1-1z"/><path d="M9 13l2 2 4-4"/></svg>),
+  crown: (c) => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg>),
+  gift: (c) => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M12 8v13M12 8S10.5 3 8 3a2.5 2.5 0 0 0 0 5h4zM12 8s1.5-5 4-5a2.5 2.5 0 0 1 0 5h-4z"/></svg>),
   sun: (c) => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>),
   moon: (c) => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>),
   signout: (c) => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>),
@@ -78,6 +80,13 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
     { key: "profile", label: "Profile", icon: Icon.profile, onClick: () => goGated("/profile"), active: isActive("/profile") },
   ];
 
+  // Desktop rail only: the mobile bottom bar has no room for more tabs,
+  // so on mobile these are reached from the Profile page cards.
+  const extraItems = [
+    { key: "refer", label: "Invite", icon: Icon.gift, onClick: () => goGated("/refer"), active: isActive("/refer") },
+    { key: "premium", label: "Premium", icon: Icon.crown, onClick: () => router.push("/premium"), active: isActive("/premium"), color: C.amber },
+  ];
+
   // ---- Mobile: bottom tab bar ----
   if (isMobile) {
     return (
@@ -109,12 +118,12 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
         display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
         width: "100%", padding: "12px 0", background: it.active ? C.accentBg : "transparent",
         border: "none", borderLeft: it.active ? `3px solid ${C.accent}` : "3px solid transparent",
-        cursor: "pointer", color: it.active ? C.accent : C.textMuted,
+        cursor: "pointer", color: it.active ? C.accent : (it.color || C.textMuted),
       }}
       onMouseEnter={(e) => { if (!it.active) e.currentTarget.style.background = C.surface; }}
       onMouseLeave={(e) => { if (!it.active) e.currentTarget.style.background = "transparent"; }}
     >
-      {it.icon(it.active ? C.accent : C.textMuted)}
+      {it.icon(it.active ? C.accent : (it.color || C.textMuted))}
       <span style={{ fontSize: 10, fontWeight: 700 }}>{it.label}</span>
     </button>
   );
@@ -124,7 +133,7 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
       <div style={{ width: 34, height: 34, borderRadius: 9, background: `linear-gradient(135deg,${C.accent},${C.purple})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, color: "#fff", marginBottom: 20, flexShrink: 0 }}>EC</div>
 
       <div style={{ display: "flex", flexDirection: "column", width: "100%", flex: 1 }}>
-        {items.map((it) => <RailBtn key={it.key} it={it} />)}
+        {[...items, ...extraItems].map((it) => <RailBtn key={it.key} it={it} />)}
       </div>
 
       <div style={{ width: "100%", display: "flex", flexDirection: "column", paddingBottom: 14 }}>
