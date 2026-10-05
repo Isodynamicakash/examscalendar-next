@@ -21,6 +21,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { usePlan } from "@/lib/plan"; // [premium]
+import PremiumPrompt from "@/components/PremiumPrompt"; // [premium]
 import BackButton from "./BackButton";
 
 const PAGE_SIZE = 10;
@@ -61,6 +63,7 @@ function FilterGroups({
   availableYears, datesByYear,
   examLabel, showAttemptStatus, currentYear,
   visibleSections,
+  locked, onLocked, // [premium]
 }) {
   const toggle = (key, val) => {
     setPending((f) => {
@@ -69,6 +72,12 @@ function FilterGroups({
       return { ...f, [key]: next };
     });
   };
+  // [premium] free users can turn these filters OFF but not on
+  const premiumToggle = (key, val) => {
+    if (locked && !(pending[key] || []).includes(val)) { onLocked?.(key); return; }
+    toggle(key, val);
+  };
+  const lock = locked ? "🔒 " : "";
 
   const applyQuickYears = (n) => {
     const cutoff = currentYear - n + 1;
@@ -128,9 +137,9 @@ function FilterGroups({
             )}
           </SectionTitle>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <Chip label="✓ Correct" active={(pending.attemptStatus || []).includes("correct")} onClick={() => toggle("attemptStatus", "correct")} color={C.green} />
-            <Chip label="✗ Incorrect" active={(pending.attemptStatus || []).includes("incorrect")} onClick={() => toggle("attemptStatus", "incorrect")} color={C.red} />
-            <Chip label="○ Unattempted" active={(pending.attemptStatus || []).includes("unattempted")} onClick={() => toggle("attemptStatus", "unattempted")} />
+            <Chip label={`${lock}✓ Correct`} active={(pending.attemptStatus || []).includes("correct")} onClick={() => premiumToggle("attemptStatus", "correct")} color={C.green} />
+            <Chip label={`${lock}✗ Incorrect`} active={(pending.attemptStatus || []).includes("incorrect")} onClick={() => premiumToggle("attemptStatus", "incorrect")} color={C.red} />
+            <Chip label={`${lock}○ Unattempted`} active={(pending.attemptStatus || []).includes("unattempted")} onClick={() => premiumToggle("attemptStatus", "unattempted")} />
           </div>
         </div>
       )}
@@ -144,9 +153,9 @@ function FilterGroups({
             )}
           </SectionTitle>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <Chip label="Easy" active={(pending.difficulty || []).includes("easy")} onClick={() => toggle("difficulty", "easy")} color={C.green} />
-            <Chip label="Medium" active={(pending.difficulty || []).includes("medium")} onClick={() => toggle("difficulty", "medium")} color={C.amber} />
-            <Chip label="Hard" active={(pending.difficulty || []).includes("hard")} onClick={() => toggle("difficulty", "hard")} color={C.red} />
+            <Chip label={`${lock}Easy`} active={(pending.difficulty || []).includes("easy")} onClick={() => premiumToggle("difficulty", "easy")} color={C.green} />
+            <Chip label={`${lock}Medium`} active={(pending.difficulty || []).includes("medium")} onClick={() => premiumToggle("difficulty", "medium")} color={C.amber} />
+            <Chip label={`${lock}Hard`} active={(pending.difficulty || []).includes("hard")} onClick={() => premiumToggle("difficulty", "hard")} color={C.red} />
           </div>
         </div>
       )}
@@ -532,15 +541,23 @@ export default function ChapterQuestionList({
 
   const goPage = (p) => { if (p >= 1 && p <= totalPages) { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); } };
 
+  const { locked } = usePlan(); // [premium]
+  const [premiumPrompt, setPremiumPrompt] = useState(null); // [premium]
+
   const filterGroupProps = {
     C, pending, setPending,
     availableYears, datesByYear,
     examLabel, showAttemptStatus: !!user,
     currentYear, visibleSections,
+    locked, // [premium]
+    onLocked: (key) => setPremiumPrompt(key === "difficulty"
+      ? "Difficulty filters are a Premium feature."
+      : "Filtering by correct, incorrect and unattempted questions is a Premium feature."),
   };
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.text, fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
+      <PremiumPrompt C={C} message={premiumPrompt} onClose={() => setPremiumPrompt(null)} />
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "16px 20px 100px", display: "flex", gap: 24, alignItems: "flex-start" }}>
 
         {!isMobile && (
