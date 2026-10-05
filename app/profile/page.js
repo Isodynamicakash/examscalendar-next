@@ -141,6 +141,18 @@ function ProfileInner() {
         <span style={{ fontSize: 13, fontWeight: 700, color: C.amber, whiteSpace: "nowrap" }}>Invite</span>
       </button>
 
+      {/* [payments] Premium entry point */}
+      <button
+        onClick={() => router.push("/premium")}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 20px", background: C.bgCard, border: `1px solid ${C.accent}`, borderRadius: 14, marginBottom: 20, cursor: "pointer", textAlign: "left" }}
+      >
+        <span>
+          <span style={{ display: "block", fontSize: 15, fontWeight: 800, color: C.text }}>ExamsCalendar Premium</span>
+          <span style={{ display: "block", fontSize: 13, color: C.textMuted, marginTop: 2 }}>Unlimited tests and all filters, from ₹99.</span>
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.accent, whiteSpace: "nowrap" }}>View plans</span>
+      </button>
+
       {/* Editable fields */}
       <div style={{ padding: "20px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, marginBottom: 20 }}>
         <div style={{ marginBottom: 16 }}>
