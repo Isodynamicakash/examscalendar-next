@@ -11,6 +11,8 @@ import { useState, useEffect } from "react";
 import BackButton from "./BackButton";
 import TestCreateModal from "./TestCreateModal";
 import { supabase } from "@/lib/supabase";
+import { usePlan } from "@/lib/plan"; // [premium]
+import PremiumPrompt from "./PremiumPrompt"; // [premium]
 
 const EXAM_SLUG_TO_ID = { "jee-main": 1, "jee-advanced": 2, neet: 3, "ssc-cgl": 6 };
 const SLUG_ALIAS = { "jee-mains": "jee-main", "jee-adv": "jee-advanced" };
@@ -27,6 +29,11 @@ export default function ChapterOverview({
 }) {
   const [counts, setCounts] = useState(null);
   const [testOpen, setTestOpen] = useState(false);
+  const { locked } = usePlan(); // [premium]
+  const [premiumPrompt, setPremiumPrompt] = useState(null); // [premium]
+  const difficultyGate = (d) => locked
+    ? setPremiumPrompt("Difficulty-wise practice is a Premium feature.")
+    : onSelectDifficulty(d);
   const [user, setUser] = useState(null);
   const [userCounts, setUserCounts] = useState({ bookmarked: 0, mistakes: 0, tests: 0, loaded: false });
   const [popup, setPopup] = useState(null);
@@ -227,9 +234,9 @@ export default function ChapterOverview({
 
       <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 12 }}>Difficulty Wise Qs Buckets</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
-        <Bucket icon="☀️" title="Easy" subtitle={`${counts ? counts.easy.toLocaleString() : loadingLabel} Qs`} onClick={() => onSelectDifficulty("easy")} accent={C.green} />
-        <Bucket icon="🎯" title="Medium" subtitle={`${counts ? counts.medium.toLocaleString() : loadingLabel} Qs`} onClick={() => onSelectDifficulty("medium")} accent={C.amber} />
-        <Bucket icon="🧗" title="Hard" subtitle={`${counts ? counts.hard.toLocaleString() : loadingLabel} Qs`} onClick={() => onSelectDifficulty("hard")} accent={C.red} />
+        <Bucket icon="☀️" title={`${locked ? "🔒 " : ""}Easy`} subtitle={`${counts ? counts.easy.toLocaleString() : loadingLabel} Qs`} onClick={() => difficultyGate("easy")} accent={C.green} />
+        <Bucket icon="🎯" title={`${locked ? "🔒 " : ""}Medium`} subtitle={`${counts ? counts.medium.toLocaleString() : loadingLabel} Qs`} onClick={() => difficultyGate("medium")} accent={C.amber} />
+        <Bucket icon="🧗" title={`${locked ? "🔒 " : ""}Hard`} subtitle={`${counts ? counts.hard.toLocaleString() : loadingLabel} Qs`} onClick={() => difficultyGate("hard")} accent={C.red} />
       </div>
 
       {counts && counts.numerical > 0 && (
@@ -255,11 +262,12 @@ export default function ChapterOverview({
           }}
         />
         <MyCard
-          icon="⚠️" title="My Mistakes"
+          icon="⚠️" title={`${locked ? "🔒 " : ""}My Mistakes`}
           count={userCounts.loaded ? userCounts.mistakes : null}
           accent={C.red} C={C}
           onClick={() => {
             if (!user) return goLogin();
+            if (locked) return setPremiumPrompt("Practising your mistakes is a Premium feature."); // [premium]
             if (userCounts.mistakes === 0) return setPopup("You have no mistakes in this chapter yet.");
             onViewMistakes?.();
           }}
@@ -286,6 +294,8 @@ export default function ChapterOverview({
         topicSlug={null}
         scopeLabel={`${chapter.name} · ${examLabel}`}
       />
+
+      <PremiumPrompt C={C} message={premiumPrompt} onClose={() => setPremiumPrompt(null)} />
 
       {popup && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9100, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setPopup(null)}>
