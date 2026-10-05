@@ -25,6 +25,8 @@ import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
 import { getChaptersWithUnits } from "@/lib/units";
 import ChapterBrowsePage from "./ChapterBrowsePage";
 import ChapterOverview from "./ChapterOverview";
+import { usePlan } from "@/lib/plan"; // [premium]
+import PremiumPrompt from "./PremiumPrompt"; // [premium]
 import Link from "next/link";
 
 // Exams that use the Marks-style single-question solver page. For these,
@@ -147,7 +149,7 @@ function ChipGroup({ items, active, onToggle, colorFn, C }) {
   );
 }
 
-function Sidebar({ examSlug, active, onSelect, liveFilters, C, isMobile, open, onClose }) {
+function Sidebar({ examSlug, active, onSelect, liveFilters, C, isMobile, open, onClose, diffLocked, onLocked }) {
   const [classFilter, setClassFilter] = useState("all"); // "all" | "11" | "12"
   const [unitFilter, setUnitFilter] = useState(null);    // unit name or null
 
@@ -286,8 +288,8 @@ function Sidebar({ examSlug, active, onSelect, liveFilters, C, isMobile, open, o
           <ChipGroup items={shifts.map(s => ({ value: s, label: s }))} active={active.shift || []} onToggle={v => toggleArr("shift", v)} colorFn={() => C.blue} C={C} />
         </FilterSection>
 
-        <FilterSection title="Difficulty" C={C}>
-          <ChipGroup items={["easy", "medium", "hard"].map(d => ({ value: d, label: d[0].toUpperCase() + d.slice(1) }))} active={active.difficulty || []} onToggle={v => toggleArr("difficulty", v)} colorFn={diffColor} C={C} />
+        <FilterSection title={diffLocked ? "🔒 Difficulty" : "Difficulty"} C={C}>
+          <ChipGroup items={["easy", "medium", "hard"].map(d => ({ value: d, label: d[0].toUpperCase() + d.slice(1) }))} active={active.difficulty || []} onToggle={v => (diffLocked && !(active.difficulty || []).includes(v)) ? onLocked?.() : toggleArr("difficulty", v)} colorFn={diffColor} C={C} />
         </FilterSection>
 
         <FilterSection title="Question Type" C={C}>
@@ -420,6 +422,9 @@ export default function QuestionBrowserClient({
   const isFirstRun = useRef(true);
 
   const C = isDark ? DARK : LIGHT;
+  const { locked } = usePlan(); // [premium]
+  const [premiumPrompt, setPremiumPrompt] = useState(null); // [premium]
+  const onDifficultyLocked = () => setPremiumPrompt("Difficulty filters are a Premium feature."); // [premium]
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const toggleTheme = () => {
@@ -595,7 +600,7 @@ export default function QuestionBrowserClient({
         </div>
       ) : (
       <div style={{ display: "flex", alignItems: "flex-start" }}>
-        {!isMobile && <Sidebar examSlug={examId} active={active} onSelect={setActive} liveFilters={liveFilters} C={C} isMobile={false} open={true} onClose={() => {}} />}
+        {!isMobile && <Sidebar examSlug={examId} active={active} onSelect={setActive} liveFilters={liveFilters} C={C} isMobile={false} open={true} onClose={() => {}} diffLocked={locked} onLocked={onDifficultyLocked} />}
 
         <div style={{ flex: 1, minWidth: 0, padding: isMobile ? "12px 12px 80px" : "20px 24px 48px" }}>
           {isMobile && pillEntries.length > 0 && (
@@ -643,7 +648,8 @@ export default function QuestionBrowserClient({
       </div>
       )}
 
-      {isMobile && <Sidebar examSlug={examId} active={active} onSelect={setActive} liveFilters={liveFilters} C={C} isMobile={true} open={drawerOpen} onClose={() => setDrawerOpen(false)} />}
+      {isMobile && <Sidebar examSlug={examId} active={active} onSelect={setActive} liveFilters={liveFilters} C={C} isMobile={true} open={drawerOpen} onClose={() => setDrawerOpen(false)} diffLocked={locked} onLocked={onDifficultyLocked} />}
+      <PremiumPrompt C={C} message={premiumPrompt} onClose={() => setPremiumPrompt(null)} />
       </div>
     </div>
     </MathJaxContext>
