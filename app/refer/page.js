@@ -10,6 +10,7 @@ import AppShell from "@/components/AppShell";
 import { supabase } from "@/lib/supabase";
 import { DARK, LIGHT } from "@/lib/questionTheme";
 import { getMyReferral, referralLink } from "@/lib/referral";
+import { usePlan } from "@/lib/plan"; // [premium]
 
 const PREMIUM_COST = 100; // coins for 1 month of Premium (redeem comes with the Premium release)
 
@@ -24,6 +25,9 @@ function ReferInner() {
 
   const [state, setState] = useState({ status: "loading", data: null });
   const [copied, setCopied] = useState(false);
+  const { plan, refresh: refreshPlan } = usePlan(); // [premium]
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemMsg, setRedeemMsg] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -64,6 +68,24 @@ function ReferInner() {
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // [premium] spend coins for Premium
+  const redeem = async () => {
+    setRedeeming(true);
+    setRedeemMsg(null);
+    const { data, error } = await supabase.rpc("redeem_premium");
+    if (error) {
+      setRedeemMsg(String(error.message).includes("INSUFFICIENT_COINS")
+        ? `You need ${PREMIUM_COST} coins to unlock Premium.`
+        : "Couldn't unlock Premium. Please try again.");
+    } else {
+      const until = new Date(data.premium_until).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+      setRedeemMsg(`Premium unlocked until ${until}.`);
+      setState((st) => ({ ...st, data: { ...st.data, coins: data.coins } }));
+      refreshPlan();
+    }
+    setRedeeming(false);
   };
 
   const shareMore = async () => {
@@ -110,9 +132,22 @@ function ReferInner() {
             : `${joined} ${joined === 1 ? "friend has" : "friends have"} joined. `}
           {joined > 0 && (coinsLeft > 0 ? `${coinsLeft} more coins for 1 month of Premium.` : "You have enough coins for 1 month of Premium.")}
         </p>
-        {coins >= PREMIUM_COST && (
-          <p style={{ fontSize: 12, color: C.textDim, margin: "6px 0 0" }}>Redeeming coins for Premium is coming soon. Your coins are saved.</p>
+        {/* [premium] Premium status + redeem */}
+        {plan?.is_premium && plan.premium_until && (
+          <p style={{ fontSize: 13, fontWeight: 700, color: C.greenText, margin: "12px 0 0" }}>
+            Premium active until {new Date(plan.premium_until).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+          </p>
         )}
+        <button
+          onClick={redeem}
+          disabled={coins < PREMIUM_COST || redeeming}
+          style={{ ...btn, width: "100%", marginTop: 14, background: coins >= PREMIUM_COST ? C.amber : C.surfaceHigh, color: coins >= PREMIUM_COST ? "#1a1a1a" : C.textDim, cursor: coins >= PREMIUM_COST && !redeeming ? "pointer" : "not-allowed" }}
+        >
+          {redeeming ? "Unlocking…" : coins >= PREMIUM_COST
+            ? `${plan?.is_premium ? "Add" : "Unlock"} 1 month of Premium (${PREMIUM_COST} coins)`
+            : `${coinsLeft} more coins to unlock Premium`}
+        </button>
+        {redeemMsg && <p style={{ fontSize: 13, color: C.text, margin: "8px 0 0" }}>{redeemMsg}</p>}
       </div>
 
       {/* Link and sharing */}
