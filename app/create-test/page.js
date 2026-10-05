@@ -26,6 +26,8 @@ import AppShell from "@/components/AppShell";
 import { DARK, LIGHT } from "@/lib/questionTheme";
 import { EXAM_TAXONOMY, EXAM_LABEL } from "@/lib/taxonomy";
 import { supabase } from "@/lib/supabase";
+import { usePlan, testsLeftToday, planErrorMessage } from "@/lib/plan"; // [premium]
+import PremiumPrompt from "@/components/PremiumPrompt"; // [premium]
 import { useEffect } from "react";
 
 const EXAM_SLUG_TO_ID = { "jee-main": 1, "jee-advanced": 2, neet: 3 };
@@ -75,6 +77,8 @@ function CreateTestInner() {
   const [poolLoading, setPoolLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [user, setUser] = useState(null);
+  const { plan, locked, refresh: refreshPlan } = usePlan(); // [premium]
+  const [premiumPrompt, setPremiumPrompt] = useState(null); // [premium]
 
   useEffect(() => {
     if (!durationEdited) setDurationMin(Math.max(1, count * 2));
@@ -188,6 +192,7 @@ function CreateTestInner() {
     // Load the base pool (all questions across selected chapters/topics),
     // plus the user's bookmark/attempt sets for source filtering.
     setPoolLoading(true);
+    refreshPlan(); // [premium] fresh "tests left today"
     const { data: sess } = await supabase.auth.getSession();
     const u = sess?.session?.user || null;
     setUser(u);
@@ -239,14 +244,23 @@ function CreateTestInner() {
     return list;
   }, [pool, source, yearFilter]);
 
+  // [premium] free plan caps the test length
+  const freeMax = locked ? plan.max_questions_per_test : null;
+  const maxCount = freeMax ? Math.min(filteredPool.length, freeMax) : filteredPool.length;
+  const testsLeft = testsLeftToday(plan);
+
   useEffect(() => {
-    const max = filteredPool.length;
+    const max = maxCount; // [premium]
     if (max > 0) setCount((c) => Math.min(Math.max(1, c), max));
-  }, [filteredPool.length]);
+  }, [maxCount]);
 
   const generate = async () => {
     if (!user) { router.push(`/login?next=/create-test`); return; }
     if (filteredPool.length === 0) { setError("No questions match these filters. Try changing source or year."); return; }
+    if (testsLeft === 0) { // [premium]
+      setPremiumPrompt(`You've used your ${plan.tests_per_day} free tests for today. Premium gives you unlimited tests.`);
+      return;
+    }
     setGenerating(true);
     try {
       const shuffled = [...filteredPool].sort(() => Math.random() - 0.5).slice(0, count);
@@ -275,7 +289,9 @@ function CreateTestInner() {
       router.push(`/test?id=${test.id}`);
     } catch (e) {
       console.error("Generate failed:", e);
-      setError("Something went wrong creating the test. Please try again.");
+      const limitMsg = planErrorMessage(e, plan); // [premium] limit hit in the database
+      if (limitMsg) { setPremiumPrompt(limitMsg); refreshPlan(); }
+      else setError("Something went wrong creating the test. Please try again.");
       setGenerating(false);
     }
   };
@@ -408,9 +424,9 @@ function CreateTestInner() {
                   ].map((s) => {
                     const on = source === s.key;
                     return (
-                      <button key={s.key} onClick={() => { if (s.key !== "all" && !user) { setError("Sign in to use this filter."); return; } setError(""); setSource(s.key); }}
+                      <button key={s.key} onClick={() => { if (s.key !== "all" && !user) { setError("Sign in to use this filter."); return; } if (s.key === "incorrect" && locked) { setPremiumPrompt("Tests from your incorrect questions are a Premium feature."); return; } setError(""); setSource(s.key); }}
                         style={{ padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${on ? C.accent : C.border}`, background: on ? C.accentBg : C.bgCard, color: on ? C.accentLight : C.text, fontWeight: 700, fontSize: 14, cursor: "pointer", textAlign: "left" }}>
-                        <span style={{ fontSize: 18, marginRight: 8 }}>{s.icon}</span>{s.label}
+                        <span style={{ fontSize: 18, marginRight: 8 }}>{s.icon}</span>{locked && s.key === "incorrect" ? "🔒 " : ""}{s.label}
                       </button>
                     );
                   })}
@@ -440,14 +456,15 @@ function CreateTestInner() {
 
               {/* Count */}
               <Section n={6} title="Number of questions" C={C}>
+                {freeMax && <div style={{ fontSize: 13, color: C.amberText, marginBottom: 8 }}>Free plan: up to {freeMax} questions per test</div>}
                 <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 10 }}>Available with these filters: <strong style={{ color: C.text }}>{filteredPool.length}</strong> Qs</div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                  {[10, 20, 30, 50, 75, 100].filter((n) => n <= filteredPool.length).map((n) => (
+                  {[10, 20, 30, 50, 75, 100].filter((n) => n <= maxCount).map((n) => (
                     <button key={n} onClick={() => setCount(n)} style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: `1.5px solid ${count === n ? C.accent : C.border}`, background: count === n ? C.accentBg : C.bgCard, color: count === n ? C.accentLight : C.textMuted, cursor: "pointer" }}>{n} Qs</button>
                   ))}
                 </div>
-                <input type="number" min={1} max={filteredPool.length || 1} value={count}
-                  onChange={(e) => setCount(Math.min(filteredPool.length || 1, Math.max(1, parseInt(e.target.value || "1", 10))))}
+                <input type="number" min={1} max={maxCount || 1} value={count}
+                  onChange={(e) => setCount(Math.min(maxCount || 1, Math.max(1, parseInt(e.target.value || "1", 10))))}
                   style={{ width: "100%", maxWidth: 220, padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, background: C.bgCard, color: C.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
               </Section>
 
@@ -461,6 +478,11 @@ function CreateTestInner() {
                 </div>
               </Section>
 
+              {testsLeft !== null && plan?.signedIn && (
+                <div style={{ fontSize: 13, fontWeight: 700, color: testsLeft === 0 ? C.redText : C.textMuted, textAlign: "center", marginBottom: 12 }}>
+                  {testsLeft === 0 ? "No free tests left today" : `${testsLeft} of ${plan.tests_per_day} free tests left today`}
+                </div>
+              )}
               {error && <div style={{ fontSize: 13, color: C.redText, background: C.redBg, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{error}</div>}
 
               <button onClick={generate} disabled={generating || filteredPool.length === 0}
@@ -471,6 +493,7 @@ function CreateTestInner() {
           )}
         </div>
       )}
+      <PremiumPrompt C={C} message={premiumPrompt} onClose={() => setPremiumPrompt(null)} />
     </div>
   );
 }
