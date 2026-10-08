@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { supabase } from "@/lib/supabase";
+import { MONETIZATION_ENABLED } from "@/lib/plan";
 import { DARK, LIGHT } from "@/lib/questionTheme";
 
 const STREAMS = ["Engineering", "Medical", "SSC / Govt Exams", "Other"];
@@ -129,6 +130,7 @@ function ProfileInner() {
         </div>
       </div>
 
+      {MONETIZATION_ENABLED && (<>
       {/* [referral] Invite friends entry point */}
       <button
         onClick={() => router.push("/refer")}
@@ -152,6 +154,7 @@ function ProfileInner() {
         </span>
         <span style={{ fontSize: 13, fontWeight: 700, color: C.accent, whiteSpace: "nowrap" }}>View plans</span>
       </button>
+      </>)}
 
       {/* Editable fields */}
       <div style={{ padding: "20px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, marginBottom: 20 }}>
