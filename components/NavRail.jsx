@@ -15,6 +15,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { MONETIZATION_ENABLED } from "@/lib/plan";
 
 // Minimal inline SVG icons -- no icon-library dependency.
 const Icon = {
@@ -133,7 +134,7 @@ export default function NavRail({ C, isDark, onToggleTheme }) {
       <div style={{ width: 34, height: 34, borderRadius: 9, background: `linear-gradient(135deg,${C.accent},${C.purple})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, color: "#fff", marginBottom: 20, flexShrink: 0 }}>EC</div>
 
       <div style={{ display: "flex", flexDirection: "column", width: "100%", flex: 1 }}>
-        {[...items, ...extraItems].map((it) => <RailBtn key={it.key} it={it} />)}
+        {[...items, ...(MONETIZATION_ENABLED ? extraItems : [])].map((it) => <RailBtn key={it.key} it={it} />)}
       </div>
 
       <div style={{ width: "100%", display: "flex", flexDirection: "column", paddingBottom: 14 }}>
